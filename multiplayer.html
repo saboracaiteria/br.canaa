@@ -1262,6 +1262,15 @@
             localStorage.setItem('playerName', playerName);
         };
 
+        // Salvar configurações gerais (sensibilidade, fov)
+        window.saveGeneralConfigs = function () {
+            const gc = {
+                sens: document.getElementById('cfg-sens').value,
+                fov: document.getElementById('cfg-fov').value
+            };
+            localStorage.setItem('canaa_config_v1', JSON.stringify(gc));
+        };
+
         // ============================================
         // FUNÇÕES DE NAVEGAÇÃO MULTIPLAYER
         // ============================================
@@ -1635,6 +1644,20 @@
                 }, 50); // 20 vezes por segundo
             });
 
+            // NOVO: Relay de bots do servidor
+            socket.on('bots-update', (botsData) => {
+                if (!isHost) {
+                    botsData.forEach((botState, index) => {
+                        if (index < bots.length) {
+                            const bot = bots[index];
+                            bot.position.set(botState.pos.x, botState.pos.y, botState.pos.z);
+                            bot.rotation.y = botState.rot || 0;
+                            bot.userData.hp = botState.health;
+                        }
+                    });
+                }
+            });
+
             socket.on('player-moved', (data) => {
                 if (remotePlayers.has(data.playerId)) {
                     const remotePlayer = remotePlayers.get(data.playerId);
@@ -1931,36 +1954,94 @@
             localStorage.setItem('canaa_hud_v3', JSON.stringify(data));
         }
 
-        function saveGeneralConfigs() {
-            const gc = {
-                bots: document.getElementById('bot-count').value,
-                diff: document.getElementById('bot-diff').value,
-                sens: document.getElementById('cfg-sens').value,
-                fov: document.getElementById('cfg-fov').value
-            };
-            localStorage.setItem('canaa_config_v1', JSON.stringify(gc));
+        };
+
+        // ============================================
+        // INPUTS E CONTROLES (CS-STYLE)
+        // ============================================
+        function setupInputs() {
+            // Mouse (Câmera e Tiro)
+            document.addEventListener('mousedown', (e) => {
+                if (!isPlaying || isPaused) return;
+
+                // Travar ponteiro ao clicar
+                if (document.pointerLockElement !== document.body) {
+                    document.body.requestPointerLock();
+                    return;
+                }
+
+                if (e.button === 0) { // Botão esquerdo
+                    isShooting = true;
+                    if (currentWeapon === 'AR') fireFocusTimer = 0;
+                } else if (e.button === 2) { // Botão direito
+                    isADS = true;
+                    if (currentWeapon === 'SNIPER') document.getElementById('sniper-scope').style.display = 'block';
+                    camera.fov = currentWeapon === 'SNIPER' ? 12 : 30;
+                    camera.updateProjectionMatrix();
+                }
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (e.button === 0) isShooting = false;
+                if (e.button === 2) {
+                    isADS = false;
+                    document.getElementById('sniper-scope').style.display = 'none';
+                    camera.fov = cfg.fov;
+                    camera.updateProjectionMatrix();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body && !isPaused && isPlaying) {
+                    const sens = cfg.sens || 0.002;
+                    cameraYaw -= e.movementX * sens;
+                    cameraPitch -= e.movementY * sens;
+                    cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch));
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (!isPlaying) return;
+
+                if (e.code === 'Escape') {
+                    togglePauseMenu();
+                    if (isPaused) document.exitPointerLock();
+                    else document.body.requestPointerLock();
+                    return;
+                }
+
+                if (isPaused) return;
+                keys[e.code] = true;
+
+                if (e.code === 'KeyR') console.log('Recarregando...'); // Lógica de reload aqui
+                if (e.code === 'Space' && jumps < 2) { vY = 0.8; jumps++; }
+                if (e.code === 'Digit1') currentWeapon = 'AR';
+                if (e.code === 'Digit2') currentWeapon = 'SNIPER';
+                if (e.code === 'KeyF') {
+                    grenadeType = grenadeType === 'explosive' ? 'smoke' : 'explosive';
+                }
+                if (e.code === 'ShiftLeft') isRunning = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+                if (e.code === 'ShiftLeft') isRunning = false;
+            });
         }
 
-        window.loadConfigs = function () {
-            const savedHud = localStorage.getItem('canaa_hud_v3');
-            if (savedHud) {
-                const data = JSON.parse(savedHud);
-                for (let id in data) {
-                    const el = document.getElementById(id);
-                    if (el && data[id].left && data[id].top) { el.style.bottom = 'auto'; el.style.right = 'auto'; el.style.left = data[id].left; el.style.top = data[id].top; }
-                }
-            }
-            const savedGc = localStorage.getItem('canaa_config_v1');
-            if (savedGc) {
-                const gc = JSON.parse(savedGc);
-                document.getElementById('bot-count').value = gc.bots;
-                document.getElementById('bot-diff').value = gc.diff;
-                document.getElementById('cfg-sens').value = gc.sens;
-                document.getElementById('cfg-fov').value = gc.fov;
-                document.getElementById('val-sens-start').innerText = gc.sens;
-                document.getElementById('val-fov-start').innerText = gc.fov;
-            }
-        };
+        function updateBotsNetworking() {
+            if (!isHost || !socket || !isPlaying) return;
+            const now = Date.now();
+            if (now - lastBotUpdate < 100) return;
+            lastBotUpdate = now;
+
+            const botsData = bots.map(b => ({
+                pos: { x: b.position.x, y: b.position.y, z: b.position.z },
+                rot: b.rotation.y,
+                health: b.userData.hp
+            }));
+            socket.emit('update-bots', botsData);
+        }
 
         function triggerHitmarker() { const hm = document.getElementById('hitmarker'); hm.style.display = 'block'; playSfx('hit'); setTimeout(() => hm.style.display = 'none', 100); }
         function addKillLog(msg) { const log = document.getElementById('kill-log'); const entry = document.createElement('div'); entry.className = 'kill-entry'; entry.innerText = msg; log.appendChild(entry); setTimeout(() => entry.remove(), 4000); }
@@ -2025,6 +2106,94 @@
             group.userData = { limbs: { lLeg, rLeg, lArm, rArm, weapon }, hp: 100, id: id || Math.random(), vY: 0 };
             group.scale.set(2, 2, 2);
             return group;
+        }
+
+        // ============================================
+        // INPUTS E CONTROLES (CS-STYLE)
+        // ============================================
+        function setupInputs() {
+            // Mouse (Câmera e Tiro)
+            document.addEventListener('mousedown', (e) => {
+                if (!isPlaying || isPaused) return;
+
+                // Travar ponteiro ao clicar
+                if (document.pointerLockElement !== document.body) {
+                    document.body.requestPointerLock();
+                    return;
+                }
+
+                if (e.button === 0) { // Botão esquerdo
+                    isShooting = true;
+                    if (currentWeapon === 'AR') fireFocusTimer = 0;
+                } else if (e.button === 2) { // Botão direito
+                    isADS = true;
+                    if (currentWeapon === 'SNIPER') document.getElementById('sniper-scope').style.display = 'block';
+                    camera.fov = currentWeapon === 'SNIPER' ? 12 : 30;
+                    camera.updateProjectionMatrix();
+                }
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (e.button === 0) isShooting = false;
+                if (e.button === 2) {
+                    isADS = false;
+                    document.getElementById('sniper-scope').style.display = 'none';
+                    camera.fov = cfg.fov;
+                    camera.updateProjectionMatrix();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body && !isPaused && isPlaying) {
+                    const sens = cfg.sens || 0.002;
+                    cameraYaw -= e.movementX * sens;
+                    cameraPitch -= e.movementY * sens;
+                    // Limitar ângulo pra não girar 360 verticalmente
+                    cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch));
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (!isPlaying) return;
+
+                if (e.code === 'Escape') {
+                    togglePauseMenu();
+                    if (isPaused) document.exitPointerLock();
+                    else document.body.requestPointerLock();
+                    return;
+                }
+
+                if (isPaused) return;
+                keys[e.code] = true;
+
+                if (e.code === 'KeyR') console.log('Recarregando...');
+                if (e.code === 'Space' && jumps < 2) { vY = 0.8; jumps++; }
+                if (e.code === 'Digit1') currentWeapon = 'AR';
+                if (e.code === 'Digit2') currentWeapon = 'SNIPER';
+                if (e.code === 'KeyF') {
+                    grenadeType = grenadeType === 'explosive' ? 'smoke' : 'explosive';
+                }
+                if (e.code === 'ShiftLeft') isRunning = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+                if (e.code === 'ShiftLeft') isRunning = false;
+            });
+        }
+
+        function updateBotsNetworking() {
+            if (!isHost || !socket || !isPlaying) return;
+            const now = Date.now();
+            if (now - lastBotUpdate < 100) return;
+            lastBotUpdate = now;
+
+            const botsData = bots.map(b => ({
+                pos: { x: b.position.x, y: b.position.y, z: b.position.z },
+                rot: b.rotation.y,
+                health: b.userData.hp
+            }));
+            socket.emit('update-bots', botsData);
         }
 
         function setupThree() {
