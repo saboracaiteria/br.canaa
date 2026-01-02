@@ -2393,28 +2393,12 @@
             document.getElementById('btn-ads').onpointerdown = () => { if (!isPaused) { isADS = true; camera.fov = currentWeapon === 'SNIPER' ? 12 : 30; camera.updateProjectionMatrix(); if (currentWeapon === 'SNIPER') document.getElementById('sniper-scope').style.display = 'block'; } };
             document.getElementById('btn-ads').onpointerup = () => { isADS = false; camera.fov = cfg.fov; camera.updateProjectionMatrix(); document.getElementById('sniper-scope').style.display = 'none'; };
             document.getElementById('btn-settings').onclick = togglePauseMenu;
-            document.getElementById('btn-eye').onclick = () => isFPS = !isFPS;
+            document.getElementById('btn-eye').onclick = () => toggleCameraMode();
+
 
             document.getElementById('btn-nade').onpointerdown = () => {
                 if (!isPlaying || isPaused) return;
-                const g = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12), new THREE.MeshStandardMaterial({ color: grenadeType === 'explosive' ? 0x222222 : 0xeeeeee }));
-                g.position.copy(playerGroup.position).add(new THREE.Vector3(0, 3.0, 0));
-                ray.setFromCamera({ x: 0, y: 0 }, camera);
-                const dir = ray.ray.direction.clone().normalize();
-                const force = cameraPitch < -0.2 ? 1.2 : 3.8;
-
-                // Alterado para 120 frames (~2 segundos em 60 FPS)
-                g.userData = { vel: dir.multiplyScalar(force), life: 120, type: grenadeType, hasStopped: false };
-                scene.add(g); grenades.push(g);
-
-                // Enviar granada ao servidor multiplayer
-                if (isMultiplayer && socket) {
-                    socket.emit('throw-grenade', {
-                        position: { x: g.position.x, y: g.position.y, z: g.position.z },
-                        velocity: { x: g.userData.vel.x, y: g.userData.vel.y, z: g.userData.vel.z },
-                        type: grenadeType
-                    });
-                }
+                throwGrenade();
             };
 
             document.getElementById('btn-run').onclick = (e) => { isRunning = !isRunning; e.target.classList.toggle('active', isRunning); };
