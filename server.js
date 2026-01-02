@@ -24,10 +24,16 @@ const rooms = new Map(); // roomCode -> Room
 const players = new Map(); // socketId -> Player
 
 class Room {
-  constructor(code, maxPlayers = 50) {
+  constructor(code, options = {}) {
     this.code = code;
-    this.maxPlayers = maxPlayers;
+    this.hostId = options.hostId || null;
+    this.maxPlayers = options.maxPlayers || 50;
+    this.isPublic = options.isPublic !== undefined ? options.isPublic : true;
+    this.gameMode = options.gameMode || 'solo'; // 'solo', 'duo', 'squad'
+    this.botCount = options.botCount || 0;
+    this.botDifficulty = options.botDifficulty || 2;
     this.players = new Map(); // playerId -> PlayerState
+    this.teams = new Map(); // teamId -> [playerIds]
     this.gameStarted = false;
     this.zoneRadius = 500;
     this.zoneCenter = { x: 0, z: 0 };
@@ -49,15 +55,62 @@ class Room {
       armor: 100,
       kills: 0,
       alive: true,
+      lives: 5, // NOVO: 5 vidas
+      isRespawning: false, // NOVO
+      respawnTimer: 0, // NOVO
+      teamId: null, // NOVO
       currentWeapon: 'AR',
       lastUpdate: Date.now()
     };
 
     this.players.set(playerId, playerState);
+
+    // Atribuir equipe se for modo duo/squad
+    if (this.gameMode !== 'solo' && !this.gameStarted) {
+      this.assignTeam(playerId);
+    }
+
     return playerState;
   }
 
+  assignTeam(playerId) {
+    const playersPerTeam = this.gameMode === 'duo' ? 2 : 4;
+
+    // Procurar equipe disponível
+    for (let [teamId, members] of this.teams) {
+      if (members.length < playersPerTeam) {
+        members.push(playerId);
+        const player = this.players.get(playerId);
+        if (player) player.teamId = teamId;
+        return teamId;
+      }
+    }
+
+    // Criar nova equipe
+    const newTeamId = uuidv4();
+    this.teams.set(newTeamId, [playerId]);
+    const player = this.players.get(playerId);
+    if (player) player.teamId = newTeamId;
+    return newTeamId;
+  }
+
   removePlayer(playerId) {
+    const player = this.players.get(playerId);
+
+    // Remover da equipe
+    if (player && player.teamId) {
+      const team = this.teams.get(player.teamId);
+      if (team) {
+        const index = team.indexOf(playerId);
+        if (index > -1) team.splice(index, 1);
+
+        // Remover equipe se vazia
+        if (team.length === 0) {
+          this.teams.delete(player.teamId);
+        }
+      }
+    }
+
     this.players.delete(playerId);
 
     // Se sala ficar vazia, marcar para limpeza
@@ -82,11 +135,50 @@ class Room {
         health: player.health,
         armor: player.armor,
         alive: player.alive,
+        lives: player.lives,
+        isRespawning: player.isRespawning,
+        respawnTimer: player.respawnTimer,
+        teamId: player.teamId,
         kills: player.kills,
         currentWeapon: player.currentWeapon
       };
     });
     return states;
+  }
+
+  getRoomInfo() {
+    return {
+      code: this.code,
+      isPublic: this.isPublic,
+      gameMode: this.gameMode,
+      playerCount: this.players.size,
+      maxPlayers: this.maxPlayers,
+      gameStarted: this.gameStarted,
+      hostName: this.hostId ? (this.players.get(this.hostId)?.name || 'Host') : 'Host'
+    };
+  }
+
+  updateRespawns(delta) {
+    this.players.forEach(player => {
+      if (player.isRespawning) {
+        player.respawnTimer -= delta;
+        if (player.respawnTimer <= 0) {
+          // Respawn
+          player.isRespawning = false;
+          player.alive = true;
+          player.health = 100;
+          player.armor = 100;
+          // Spawn em posição aleatória segura
+          const angle = Math.random() * Math.PI * 2;
+          const dist = Math.random() * 100 + 50;
+          player.position = {
+            x: Math.cos(angle) * dist,
+            y: 2,
+            z: Math.sin(angle) * dist
+          };
+        }
+      }
+    });
   }
 
   updateZone(delta) {
@@ -108,23 +200,38 @@ class Room {
 
     // Aplicar dano aos jogadores fora da zona
     this.players.forEach(player => {
-      if (player.alive) {
+      if (player.alive && !player.isRespawning) {
         const dist = Math.sqrt(player.position.x ** 2 + player.position.z ** 2);
         if (dist > this.zoneRadius) {
           player.health -= 0.05;
           if (player.health <= 0) {
-            player.alive = false;
-            player.health = 0;
+            this.handlePlayerDeath(player);
           }
         }
       }
     });
   }
 
+  handlePlayerDeath(player, killerId = null) {
+    player.health = 0;
+    player.alive = false;
+    player.lives--;
+
+    if (player.lives > 0) {
+      // Iniciar respawn
+      player.isRespawning = true;
+      player.respawnTimer = 5; // 5 segundos
+      return { respawning: true, eliminated: false };
+    } else {
+      // Eliminado permanentemente
+      return { respawning: false, eliminated: true };
+    }
+  }
+
   startGame() {
     this.gameStarted = true;
     this.zoneShrinking = true;
-    console.log(`[SALA ${this.code}] Jogo iniciado com ${this.players.size} jogadores`);
+    console.log(`[SALA ${this.code}] Jogo iniciado - Modo: ${this.gameMode}, Jogadores: ${this.players.size}, Bots: ${this.botCount}`);
   }
 }
 
@@ -135,13 +242,30 @@ class Room {
 io.on('connection', (socket) => {
   console.log(`[CONEXÃO] Cliente conectado: ${socket.id}`);
 
+  // ========== LISTAR SALAS PÚBLICAS ==========
+  socket.on('list-rooms', () => {
+    const publicRooms = Array.from(rooms.values())
+      .filter(room => room.isPublic && !room.gameStarted)
+      .map(room => room.getRoomInfo());
+
+    socket.emit('rooms-list', publicRooms);
+  });
+
   // ========== CRIAR SALA ==========
-  socket.on('create-room', ({ playerName, maxPlayers }) => {
+  socket.on('create-room', ({ playerName, maxPlayers, isPublic, gameMode, botCount, botDifficulty }) => {
     const roomCode = generateRoomCode();
-    const room = new Room(roomCode, maxPlayers || 50);
+    const room = new Room(roomCode, {
+      maxPlayers: maxPlayers || 50,
+      isPublic: isPublic !== undefined ? isPublic : true,
+      gameMode: gameMode || 'solo',
+      botCount: botCount || 0,
+      botDifficulty: botDifficulty || 2
+    });
+
     rooms.set(roomCode, room);
 
     const playerState = room.addPlayer(socket.id, playerName);
+    room.hostId = playerState.id;
     players.set(socket.id, { playerId: playerState.id, roomCode: roomCode });
 
     socket.join(roomCode);
@@ -149,10 +273,16 @@ io.on('connection', (socket) => {
     socket.emit('room-created', {
       roomCode: roomCode,
       playerId: playerState.id,
-      playerState: playerState
+      playerState: playerState,
+      roomInfo: room.getRoomInfo()
     });
 
-    console.log(`[SALA CRIADA] ${roomCode} por ${playerName}`);
+    // Broadcast atualização de lista de salas
+    if (room.isPublic) {
+      io.emit('room-list-updated');
+    }
+
+    console.log(`[SALA CRIADA] ${roomCode} por ${playerName} - ${gameMode.toUpperCase()} - ${isPublic ? 'PÚBLICA' : 'PRIVADA'}`);
   });
 
   // ========== ENTRAR EM SALA ==========
@@ -184,7 +314,8 @@ io.on('connection', (socket) => {
       roomCode: roomCode,
       playerId: playerState.id,
       playerState: playerState,
-      allPlayers: room.getPlayerStates()
+      allPlayers: room.getPlayerStates(),
+      roomInfo: room.getRoomInfo()
     });
 
     // Notificar outros jogadores
@@ -204,12 +335,25 @@ io.on('connection', (socket) => {
     const room = rooms.get(playerData.roomCode);
     if (!room) return;
 
-    // Remover restrição - pode iniciar com qualquer número de jogadores
+    // Apenas o host pode iniciar
+    if (room.hostId !== playerData.playerId) {
+      socket.emit('error', { message: 'Apenas o host pode iniciar o jogo' });
+      return;
+    }
 
     room.startGame();
     io.to(playerData.roomCode).emit('game-started', {
-      players: room.getPlayerStates()
+      players: room.getPlayerStates(),
+      botCount: room.botCount,
+      botDifficulty: room.botDifficulty,
+      gameMode: room.gameMode,
+      teams: Object.fromEntries(room.teams)
     });
+
+    // Atualizar lista de salas
+    if (room.isPublic) {
+      io.emit('room-list-updated');
+    }
   });
 
   // ========== ATUALIZAR POSIÇÃO ==========
@@ -221,7 +365,7 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     const player = room.players.get(playerData.playerId);
-    if (!player || !player.alive) return;
+    if (!player || !player.alive || player.isRespawning) return;
 
     // Atualizar estado do jogador
     player.position = data.position;
@@ -245,7 +389,7 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     const shooter = room.players.get(playerData.playerId);
-    if (!shooter || !shooter.alive) return;
+    if (!shooter || !shooter.alive || shooter.isRespawning) return;
 
     // Broadcast do tiro para todos
     io.to(playerData.roomCode).emit('bullet-fired', {
@@ -258,7 +402,13 @@ io.on('connection', (socket) => {
     // Verificar se acertou algum jogador (validação server-side)
     if (data.hitPlayerId) {
       const target = room.players.get(data.hitPlayerId);
-      if (target && target.alive) {
+      if (target && target.alive && !target.isRespawning) {
+
+        // Verificar friendly fire (não permitido)
+        if (shooter.teamId && shooter.teamId === target.teamId) {
+          return; // Não aplicar dano em membros da mesma equipe
+        }
+
         const damage = data.weaponType === 'SNIPER' ? 400 : 50;
 
         // Aplicar dano
@@ -274,25 +424,30 @@ io.on('connection', (socket) => {
 
         // Verificar eliminação
         if (target.health <= 0) {
-          target.health = 0;
-          target.alive = false;
+          const deathResult = room.handlePlayerDeath(target, playerData.playerId);
           shooter.kills++;
 
-          io.to(playerData.roomCode).emit('player-eliminated', {
-            victimId: data.hitPlayerId,
-            victimName: target.name,
-            killerId: playerData.playerId,
-            killerName: shooter.name
-          });
-
-          // Verificar vencedor
-          const aliveCount = room.getAliveCount();
-          if (aliveCount === 1) {
-            const winner = Array.from(room.players.values()).find(p => p.alive);
-            io.to(playerData.roomCode).emit('game-over', {
-              winnerId: winner.id,
-              winnerName: winner.name
+          if (deathResult.respawning) {
+            // Morreu mas vai respawnar
+            io.to(playerData.roomCode).emit('player-died', {
+              victimId: data.hitPlayerId,
+              victimName: target.name,
+              killerId: playerData.playerId,
+              killerName: shooter.name,
+              livesRemaining: target.lives,
+              respawnTime: 5
             });
+          } else {
+            // Eliminado permanentemente
+            io.to(playerData.roomCode).emit('player-eliminated', {
+              victimId: data.hitPlayerId,
+              victimName: target.name,
+              killerId: playerData.playerId,
+              killerName: shooter.name
+            });
+
+            // Verificar condição de vitória
+            checkWinCondition(room, playerData.roomCode);
           }
         }
 
@@ -305,6 +460,20 @@ io.on('connection', (socket) => {
         });
       }
     }
+  });
+
+  // ========== RESPAWN ==========
+  socket.on('request-respawn', () => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    const room = rooms.get(playerData.roomCode);
+    if (!room) return;
+
+    const player = room.players.get(playerData.playerId);
+    if (!player || player.lives <= 0 || !player.isRespawning) return;
+
+    // O respawn acontece automaticamente via update loop
   });
 
   // ========== JOGAR GRANADA ==========
@@ -338,6 +507,55 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ========== WEBRTC SIGNALING (VOICE CHAT) ==========
+  socket.on('voice-offer', ({ targetId, offer }) => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    const room = rooms.get(playerData.roomCode);
+    if (!room) return;
+
+    const target = room.players.get(targetId);
+    if (target) {
+      io.to(target.socketId).emit('voice-offer', {
+        fromId: playerData.playerId,
+        offer: offer
+      });
+    }
+  });
+
+  socket.on('voice-answer', ({ targetId, answer }) => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    const room = rooms.get(playerData.roomCode);
+    if (!room) return;
+
+    const target = room.players.get(targetId);
+    if (target) {
+      io.to(target.socketId).emit('voice-answer', {
+        fromId: playerData.playerId,
+        answer: answer
+      });
+    }
+  });
+
+  socket.on('voice-ice-candidate', ({ targetId, candidate }) => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    const room = rooms.get(playerData.roomCode);
+    if (!room) return;
+
+    const target = room.players.get(targetId);
+    if (target) {
+      io.to(target.socketId).emit('voice-ice-candidate', {
+        fromId: playerData.playerId,
+        candidate: candidate
+      });
+    }
+  });
+
   // ========== DESCONEXÃO ==========
   socket.on('disconnect', () => {
     const playerData = players.get(socket.id);
@@ -358,6 +576,11 @@ io.on('connection', (socket) => {
         if (shouldRemoveRoom) {
           rooms.delete(playerData.roomCode);
           console.log(`[SALA REMOVIDA] ${playerData.roomCode}`);
+          // Atualizar lista de salas
+          io.emit('room-list-updated');
+        } else {
+          // Verificar condição de vitória após saída
+          checkWinCondition(room, playerData.roomCode);
         }
       }
       players.delete(socket.id);
@@ -377,6 +600,9 @@ setInterval(() => {
 
   rooms.forEach((room, roomCode) => {
     if (room.gameStarted) {
+      // Atualizar respawns
+      room.updateRespawns(delta);
+
       // Atualizar zona
       room.updateZone(delta);
 
@@ -388,7 +614,7 @@ setInterval(() => {
         pauseTime: Math.ceil(room.gasPauseTimer)
       });
 
-      // Enviar estados dos jogadores (incluindo HP/Armor)
+      // Enviar estados dos jogadores (incluindo HP/Armor/Lives/Respawn)
       io.to(roomCode).emit('players-state', room.getPlayerStates());
     }
   });
@@ -412,6 +638,46 @@ function generateRoomCode() {
   return code;
 }
 
+function checkWinCondition(room, roomCode) {
+  if (!room.gameStarted) return;
+
+  if (room.gameMode === 'solo') {
+    // Solo: último jogador vivo vence
+    const aliveCount = room.getAliveCount();
+    if (aliveCount === 1) {
+      const winner = Array.from(room.players.values()).find(p => p.alive);
+      if (winner) {
+        io.to(roomCode).emit('game-over', {
+          winnerId: winner.id,
+          winnerName: winner.name,
+          teamId: null
+        });
+      }
+    }
+  } else {
+    // Duo/Squad: última equipe com membros vivos vence
+    const aliveTeams = new Set();
+    room.players.forEach(player => {
+      if (player.alive && player.teamId) {
+        aliveTeams.add(player.teamId);
+      }
+    });
+
+    if (aliveTeams.size === 1) {
+      const winningTeamId = Array.from(aliveTeams)[0];
+      const teamMembers = Array.from(room.players.values())
+        .filter(p => p.teamId === winningTeamId);
+
+      io.to(roomCode).emit('game-over', {
+        winnerId: null,
+        winnerName: null,
+        teamId: winningTeamId,
+        teamMembers: teamMembers.map(p => ({ id: p.id, name: p.name, kills: p.kills }))
+      });
+    }
+  }
+}
+
 // ============================================
 // INICIAR SERVIDOR
 // ============================================
@@ -423,5 +689,6 @@ server.listen(PORT, () => {
 
 🚀 Servidor rodando em http://localhost:${PORT}
 🎮 Aguardando jogadores...
+✨ Recursos: Vidas, Duo/Squad, Salas Públicas/Privadas, Voice Chat
   `);
 });

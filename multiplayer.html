@@ -753,6 +753,149 @@
             white-space: nowrap;
             border: 1px solid var(--ui-cyan);
         }
+
+        /* ROOM CARDS */
+        .room-card {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid var(--ui-cyan);
+            border-left: 4px solid var(--ui-primary);
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .room-card:hover {
+            background: rgba(0, 243, 255, 0.1);
+            border-left-color: var(--ui-cyan);
+            transform: translateX(5px);
+        }
+
+        .room-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .room-code {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--ui-primary);
+            letter-spacing: 2px;
+        }
+
+        .room-mode {
+            background: var(--ui-cyan);
+            color: #000;
+            padding: 3px 10px;
+            font-size: 0.7rem;
+            font-weight: 900;
+            border-radius: 3px;
+        }
+
+        .room-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .room-players {
+            color: var(--ui-primary);
+            font-weight: bold;
+        }
+
+        /* LIVES DISPLAY */
+        #lives-display {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 2px solid var(--ui-danger);
+            color: var(--ui-danger);
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* RESPAWN SCREEN */
+        #respawn-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500;
+        }
+
+        #respawn-screen.active {
+            display: flex;
+        }
+
+        .respawn-content {
+            text-align: center;
+            color: white;
+        }
+
+        .respawn-timer {
+            font-size: 4rem;
+            color: var(--ui-primary);
+            font-weight: 900;
+            text-shadow: 0 0 20px var(--ui-primary);
+        }
+
+        /* TEAM INDICATOR */
+        #team-indicator {
+            position: absolute;
+            top: 100px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 2px solid;
+            font-size: 12px;
+            font-weight: bold;
+            display: none;
+        }
+
+        /* VOICE CHAT BUTTON */
+        #btn-voice {
+            position: absolute;
+            bottom: 220px;
+            right: 55px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2.5px solid var(--ui-cyan);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: none;
+            transition: 0.3s;
+        }
+
+        #btn-voice.active {
+            background: var(--ui-cyan);
+            color: #000;
+            box-shadow: 0 0 20px var(--ui-cyan);
+            transform: scale(1.1);
+        }
+
+        #btn-voice.muted {
+            opacity: 0.5;
+            border-color: var(--ui-danger);
+        }
     </style>
 </head>
 
@@ -791,7 +934,8 @@
             </div>
             <button class="btn-main btn-secondary" onclick="toggleHudEdit()">✏️ CUSTOMIZAR INTERFACE (HUD)</button>
             <button class="btn-main btn-play" onclick="showRoomOptions()">[ CRIAR SALA ]</button>
-            <button class="btn-main btn-secondary" onclick="showJoinRoom()">ENTRAR EM SALA</button>
+            <button class="btn-main btn-play" onclick="showRoomList()">[ VER SALAS PÚBLICAS ]</button>
+            <button class="btn-main btn-secondary" onclick="showJoinRoom()">ENTRAR POR CÓDIGO</button>
 
             <div class="dev-info">
                 <a href="https://www.instagram.com/_nildoxz/" target="_blank">// DEVELOPER: _nildoxz</a>
@@ -800,17 +944,56 @@
         </div>
     </div>
 
+    <!-- TELA DE LISTA DE SALAS -->
+    <div id="room-list-screen" class="overlay-screen hidden">
+        <div class="cyber-title">SALAS PÚBLICAS</div>
+        <div
+            style="width: 90%; max-width: 750px; background: rgba(0,0,0,0.85); padding: 30px; border: 2px solid var(--ui-cyan); backdrop-filter: blur(10px); z-index: 5;">
+
+            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                <button class="btn-main btn-secondary" onclick="refreshRoomList()" style="flex: 1;">🔄
+                    ATUALIZAR</button>
+                <button class="btn-main btn-secondary" onclick="showRoomOptions()" style="flex: 1;">➕ CRIAR
+                    SALA</button>
+            </div>
+
+            <div id="rooms-container" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                <!-- Salas serão inseridas aqui dinamicamente -->
+                <div style="text-align: center; color: rgba(255,255,255,0.6); padding: 40px;">
+                    <p>🔍 Procurando salas...</p>
+                </div>
+            </div>
+
+            <button class="btn-main btn-secondary" onclick="backToModeSelect()" style="width: 100%;">VOLTAR</button>
+        </div>
+    </div>
+
     <!-- TELA DE CRIAR SALA -->
     <div id="create-room-screen" class="overlay-screen hidden">
         <div class="cyber-title">CRIAR SALA</div>
         <div class="config-box">
+            <div class="field">
+                <label>// MODO DE JOGO</label>
+                <select id="game-mode-select">
+                    <option value="solo">SOLO (Todos contra Todos)</option>
+                    <option value="duo">DUO (Equipes de 2)</option>
+                    <option value="squad">SQUAD (Equipes de 4)</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>// VISIBILIDADE</label>
+                <select id="room-visibility-select">
+                    <option value="true">PÚBLICA (Visível para todos)</option>
+                    <option value="false">PRIVADA (Apenas por código)</option>
+                </select>
+            </div>
             <div class="field">
                 <label>// MÁX. JOGADORES</label>
                 <input type="number" id="max-players-input" value="50" min="2" max="100">
             </div>
             <div class="field">
                 <label>// Nº BOTS (IA)</label>
-                <input type="number" id="mp-bot-count" value="20" min="0" max="60">
+                <input type="number" id="mp-bot-count" value="10" min="0" max="60">
             </div>
             <div class="field">
                 <label>// DIFICULDADE BOTS</label>
@@ -920,6 +1103,16 @@
         <div id="timer-display">ZONA: 100s</div>
         <div id="ping-display">PING: <span id="ping-value">0</span>ms</div>
 
+        <!-- NOVO: Contador de Vidas -->
+        <div id="lives-display" style="display: none;">
+            ❤️ <span id="lives-count">5</span>
+        </div>
+
+        <!-- NOVO: Indicador de Equipe -->
+        <div id="team-indicator">
+            EQUIPE <span id="team-name">1</span>
+        </div>
+
         <div id="player-counters">
             <div class="counter-row"><span>VIVOS:</span> <span id="count-alive" class="c-alive">0</span></div>
             <div class="counter-row"><span>MORTOS:</span> <span id="count-dead" class="c-dead">0</span></div>
@@ -957,14 +1150,32 @@
         <div id="btn-swap-nade" class="hud-el">BOMBA<br>(EXPL)</div>
         <div id="btn-switch-weapon" class="hud-el">ARMA<br>(FUZIL)</div>
         <div id="btn-fullscreen" class="hud-el" onclick="toggleFullscreen()">⛶</div>
+
+        <!-- NOVO: Botão Voice Chat -->
+        <div id="btn-voice" class="hud-el" title="Pressione para falar">🎤</div>
+
         <div id="joy-zone" class="hud-el">
             <div id="joy-knob"></div>
         </div>
         <div id="minimap-container" class="hud-el"><canvas id="minimap-canvas"></canvas></div>
     </div>
 
+    <!-- NOVO: Tela de Respawn -->
+    <div id="respawn-screen">
+        <div class="respawn-content">
+            <h2 style="color: var(--ui-danger); font-size: 2rem; margin-bottom: 20px;">ELIMINADO</h2>
+            <div class="respawn-timer" id="respawn-timer">5</div>
+            <p style="font-size: 1.2rem; margin-top: 20px;">Respawn em...</p>
+            <p style="color: var(--ui-primary); font-size: 0.9rem;">Vidas restantes: <span id="respawn-lives">4</span>
+            </p>
+        </div>
+    </div>
+
     <!-- Socket.io CDN -->
     <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Voice Chat Module -->
+    <script src="voice-chat.js"></script>
 
     <script
         type="importmap"> { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } } </script>
@@ -1001,6 +1212,23 @@
         let remotePlayers = new Map();
         let lastPingTime = 0;
         let positionUpdateInterval = null;
+
+        // NOVO: Sistema de Vidas e Equipes
+        let playerLives = 5;
+        let isRespawning = false;
+        let respawnTimer = 0;
+        let myTeamId = null;
+        let gameMode = 'solo'; // 'solo', 'duo', 'squad'
+        let teamColors = {
+            0: '#00ff00', // Verde
+            1: '#00d4ff', // Azul
+            2: '#fcee0a', // Amarelo
+            3: '#ff003c'  // Vermelho
+        };
+
+        // NOVO: Voice Chat
+        let voiceChat = null;
+        let isPushToTalkActive = false;
 
         // ============================================
         // CARREGAR CONFIGURAÇÕES
@@ -1048,8 +1276,113 @@
         window.backToModeSelect = function () {
             document.getElementById('create-room-screen').classList.add('hidden');
             document.getElementById('join-room-screen').classList.add('hidden');
+            document.getElementById('room-list-screen').classList.add('hidden');
             document.getElementById('mode-select-screen').classList.remove('hidden');
         };
+
+        // NOVO: Mostrar lista de salas públicas
+        window.showRoomList = function () {
+            document.getElementById('mode-select-screen').classList.add('hidden');
+            document.getElementById('room-list-screen').classList.remove('hidden');
+            refreshRoomList();
+        };
+
+        // NOVO: Atualizar lista de salas
+        window.refreshRoomList = function () {
+            if (!socket) {
+                socket = io();
+            }
+
+            socket.emit('list-rooms');
+
+            socket.once('rooms-list', (rooms) => {
+                const container = document.getElementById('rooms-container');
+
+                if (rooms.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: rgba(255,255,255,0.6); padding: 40px;">
+                            <p>😕 Nenhuma sala pública disponível</p>
+                            <p style="font-size: 0.8rem;">Crie uma nova sala ou entre por código</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = rooms.map(room => `
+                    <div class="room-card" onclick="joinRoomByCode('${room.code}')">
+                        <div class="room-card-header">
+                            <div class="room-code">${room.code}</div>
+                            <div class="room-mode">${room.gameMode.toUpperCase()}</div>
+                        </div>
+                        <div class="room-info">
+                            <span>Host: ${room.hostName}</span>
+                            <span class="room-players">👥 ${room.playerCount}/${room.maxPlayers}</span>
+                            <span>${room.gameStarted ? '🔴 Em Jogo' : '🟢 Aguardando'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        };
+
+        // NOVO: Entrar em sala diretamente pelo código
+        window.joinRoomByCode = function (code) {
+            document.getElementById('room-code-input').value = code;
+            document.getElementById('room-list-screen').classList.add('hidden');
+            document.getElementById('join-room-screen').classList.remove('hidden');
+        };
+
+        // NOVO: Atualizar display de equipe
+        function updateTeamDisplay() {
+            const teamIndicator = document.getElementById('team-indicator');
+            if (gameMode !== 'solo' && myTeamId !== null) {
+                const teamIndex = Array.from(new Set(
+                    Array.from(remotePlayers.values())
+                        .map(p => p.state?.teamId)
+                        .filter(t => t)
+                )).indexOf(myTeamId);
+
+                const teamColor = teamColors[teamIndex] || teamColors[0];
+
+                teamIndicator.style.borderColor = teamColor;
+                teamIndicator.style.color = teamColor;
+                teamIndicator.style.display = 'block';
+                document.getElementById('team-name').innerText = teamIndex + 1;
+            } else {
+                teamIndicator.style.display = 'none';
+            }
+        }
+
+        // NOVO: Lidar com morte do jogador
+        function handlePlayerDeath(data) {
+            playerLives = data.livesRemaining;
+            document.getElementById('lives-count').innerText = playerLives;
+
+            if (playerLives > 0) {
+                isRespawning = true;
+                respawnTimer = data.respawnTime || 5;
+                showRespawnScreen();
+            } else {
+                showMsg('ELIMINADO', 'Você foi eliminado da partida!');
+            }
+        }
+
+        // NOVO: Mostrar tela de respawn
+        function showRespawnScreen() {
+            const respawnScreen = document.getElementById('respawn-screen');
+            respawnScreen.classList.add('active');
+            document.getElementById('respawn-lives').innerText = playerLives;
+
+            const timerInterval = setInterval(() => {
+                respawnTimer--;
+                document.getElementById('respawn-timer').innerText = respawnTimer;
+
+                if (respawnTimer <= 0) {
+                    clearInterval(timerInterval);
+                    respawnScreen.classList.remove('active');
+                    isRespawning = false;
+                }
+            }, 1000);
+        }
 
         // Criar sala multiplayer
         window.createRoom = function () {
@@ -1057,20 +1390,31 @@
             const maxPlayers = parseInt(document.getElementById('max-players-input').value) || 50;
             const botCount = parseInt(document.getElementById('mp-bot-count').value) || 0;
             const botDiff = parseInt(document.getElementById('mp-bot-diff').value) || 2;
+            const selectedGameMode = document.getElementById('game-mode-select').value;
+            const isPublic = document.getElementById('room-visibility-select').value === 'true';
 
             // Configurar quantidade e dificuldade dos bots
             initialBotCount = botCount;
             cfg.bots = botCount;
             cfg.diff = botDiff;
+            gameMode = selectedGameMode; // Salvar modo de jogo
 
             socket = io();
             isMultiplayer = true;
 
-            socket.emit('create-room', { playerName, maxPlayers });
+            socket.emit('create-room', {
+                playerName,
+                maxPlayers,
+                isPublic,
+                gameMode: selectedGameMode,
+                botCount,
+                botDifficulty: botDiff
+            });
 
             socket.on('room-created', (data) => {
                 myPlayerId = data.playerId;
                 currentRoomCode = data.roomCode;
+                myTeamId = data.playerState.teamId; // Salvar ID da equipe
 
                 document.getElementById('lobby-code-display').innerText = currentRoomCode;
                 document.getElementById('create-room-screen').classList.add('hidden');
@@ -1174,8 +1518,17 @@
                 cfg.sens = parseInt(document.getElementById('cfg-sens').value) * 0.0003;
                 cfg.fov = parseInt(document.getElementById('cfg-fov').value);
 
-                // Permitir bots no multiplayer (jogadores + bots)
-                // initialBotCount configurado pela tela inicial permanece
+                // NOVO: Configurar bots do servidor
+                initialBotCount = data.botCount || 0;
+                cfg.bots = initialBotCount;
+                cfg.diff = data.botDifficulty || 2;
+
+                // NOVO: Configurar modo de jogo e equipe
+                gameMode = data.gameMode || 'solo';
+                if (data.players[myPlayerId]) {
+                    myTeamId = data.players[myPlayerId].teamId;
+                    playerLives = data.players[myPlayerId].lives || 5;
+                }
 
                 setupThree();
                 setupMinimap();
@@ -1188,6 +1541,47 @@
                         createRemotePlayer(playerState);
                     }
                 });
+
+                // NOVO: Inicializar Voice Chat
+                if (window.VoiceChat) {
+                    voiceChat = new VoiceChat(socket, myPlayerId);
+                    voiceChat.initialize().then(success => {
+                        if (success) {
+                            console.log('[VOICE CHAT] Inicializado');
+                            const playerIds = Object.keys(data.players).filter(id => id !== myPlayerId);
+                            voiceChat.connectToPeers(playerIds);
+
+                            // Setup botão voice chat
+                            const btnVoice = document.getElementById('btn-voice');
+                            let pressTimer;
+
+                            btnVoice.addEventListener('pointerdown', (e) => {
+                                pressTimer = setTimeout(() => {
+                                    const isMuted = voiceChat.toggleMute();
+                                    btnVoice.classList.toggle('muted', isMuted);
+                                }, 1000);
+
+                                isPushToTalkActive = true;
+                                voiceChat.setPushToTalk(true);
+                                btnVoice.classList.add('active');
+                            });
+
+                            btnVoice.addEventListener('pointerup', () => {
+                                clearTimeout(pressTimer);
+                                isPushToTalkActive = false;
+                                voiceChat.setPushToTalk(false);
+                                btnVoice.classList.remove('active');
+                            });
+                        } else {
+                            document.getElementById('btn-voice').style.display = 'none';
+                        }
+                    });
+                }
+
+                // NOVO: Atualizar HUD com vidas e equipe
+                document.getElementById('lives-display').style.display = 'flex';
+                document.getElementById('lives-count').innerText = playerLives;
+                updateTeamDisplay();
 
                 // Iniciar envio de posição
                 positionUpdateInterval = setInterval(() => {
@@ -1262,8 +1656,57 @@
                 }
             });
 
+            // NOVO: Jogador morreu (mas vai respawnar)
+            socket.on('player-died', (data) => {
+                if (data.victimId === myPlayerId) {
+                    handlePlayerDeath(data);
+                }
+                addKillLog(`${data.killerName} ⚔️ ${data.victimName} (${data.livesRemaining} ❤️)`);
+            });
+
+            // NOVO: Atualizar lista de salas
+            socket.on('room-list-updated', () => {
+                const roomListScreen = document.getElementById('room-list-screen');
+                if (roomListScreen && !roomListScreen.classList.contains('hidden')) {
+                    refreshRoomList();
+                }
+            });
+
+            // NOVO: Atualizar estados dos jogadores (incluindo vidas)
+            socket.on('players-state', (playersState) => {
+                Object.entries(playersState).forEach(([playerId, state]) => {
+                    if (playerId === myPlayerId) {
+                        // Atualizar próprias vidas
+                        if (state.lives !== undefined && state.lives !== playerLives) {
+                            playerLives = state.lives;
+                            document.getElementById('lives-count').innerText = playerLives;
+                        }
+
+                        // Atualizar posição se estava respawnando
+                        if (state.isRespawning === false && isRespawning === true) {
+                            playerGroup.position.set(state.position.x, state.position.y, state.position.z);
+                            health = state.health;
+                            armor = state.armor;
+                        }
+
+                        isRespawning = state.isRespawning || false;
+                    } else if (remotePlayers.has(playerId)) {
+                        const remotePlayer = remotePlayers.get(playerId);
+                        remotePlayer.state = state;
+                    }
+                });
+            });
+
             socket.on('game-over', (data) => {
-                if (data.winnerId === myPlayerId) {
+                if (data.teamId) {
+                    // Vitória por equipe
+                    const isMyTeam = data.teamId === myTeamId;
+                    if (isMyTeam) {
+                        showMsg("BOOYAH!", "Sua equipe venceu!");
+                    } else {
+                        showMsg("DERROTA", "Outra equipe venceu");
+                    }
+                } else if (data.winnerId === myPlayerId) {
                     showMsg("BOOYAH!", "Você venceu a partida!");
                 } else {
                     showMsg("DERROTA", `${data.winnerName} venceu`);
@@ -1314,6 +1757,64 @@
                     if (pingEl) pingEl.innerText = ping;
                 });
             }
+        }
+
+        // NOVO: Criar jogador remoto com cores de equipe
+        function createRemotePlayer(playerState) {
+            // Criar modelo 3D simples do jogador
+            const group = new THREE.Group();
+
+            // Corpo
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 3, 0.8),
+                new THREE.MeshStandardMaterial({ color: 0x1d7f7f })
+            );
+            body.position.y = 1.5;
+            group.add(body);
+
+            // Cabeça
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(0.9, 0.9, 0.9),
+                new THREE.MeshStandardMaterial({ color: 0xffdbac })
+            );
+            head.position.y = 3.5;
+            group.add(head);
+
+            group.position.set(playerState.position.x, playerState.position.y, playerState.position.z);
+            scene.add(group);
+
+            // Criar nametag
+            const nametag = document.createElement('div');
+            nametag.className = 'nametag';
+            nametag.innerText = playerState.name;
+
+            // NOVO: Aplicar cor da equipe
+            if (gameMode !== 'solo' && playerState.teamId) {
+                // Encontrar índice da equipe
+                const allTeamIds = new Set();
+                allTeamIds.add(myTeamId);
+                remotePlayers.forEach(p => {
+                    if (p.state?.teamId) allTeamIds.add(p.state.teamId);
+                });
+                if (playerState.teamId) allTeamIds.add(playerState.teamId);
+
+                const teamArray = Array.from(allTeamIds).sort();
+                const teamIndex = teamArray.indexOf(playerState.teamId);
+                const teamColor = teamColors[teamIndex] || teamColors[0];
+
+                nametag.style.borderColor = teamColor;
+                nametag.style.color = teamColor;
+
+                // Destacar membros da mesma equipe
+                if (playerState.teamId === myTeamId) {
+                    nametag.style.fontWeight = '900';
+                    nametag.style.textShadow = `0 0 5px ${teamColor}`;
+                }
+            }
+
+            document.body.appendChild(nametag);
+
+            remotePlayers.set(playerState.id, { model: group, nametag, state: playerState });
         }
 
         const bulletGeo = new THREE.SphereGeometry(0.45, 8, 8);

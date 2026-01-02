@@ -89,22 +89,31 @@
             z-index: 5;
         }
 
-        .main-menu::before {
-            content: "// DEVELOPER: _nildoxz";
-            position: absolute;
-            bottom: 5px;
-            right: 20px;
-            font-size: 0.5rem;
-            color: var(--ui-cyan);
+        .dev-footer {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.7);
+            z-index: 1;
+            text-align: center;
         }
 
-        .main-menu::after {
-            content: "Canaã dos Carajás - 2026";
-            position: absolute;
-            bottom: 5px;
-            left: 20px;
-            font-size: 0.5rem;
-            color: rgba(255, 255, 255, 0.6);
+        .dev-footer a {
+            color: var(--ui-cyan);
+            text-decoration: none;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .dev-footer a:hover {
+            color: var(--ui-primary);
+            text-shadow: 0 0 10px var(--ui-primary);
         }
 
         /* Painel de opções/configurações */
@@ -393,6 +402,12 @@
 
             <button class="btn-secondary" onclick="saveSettings()">[ SALVAR CONFIGURAÇÕES ]</button>
             <button class="btn-back" onclick="backToMenu()">[ VOLTAR ]</button>
+        </div>
+
+        <!-- Developer Footer -->
+        <div class="dev-footer">
+            <a href="https://www.instagram.com/_nildoxz/" target="_blank">// DEVELOPER: _nildoxz</a>
+            <span>Canaã dos Carajás - 2026</span>
         </div>
     </div>
 
