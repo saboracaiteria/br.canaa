@@ -4,14 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Residencial Canaã - Escolha seu Modo</title>
+    <title>Residencial Canaã</title>
     <style>
-        :root {
-            --ui-primary: #fcee0a;
-            --ui-cyan: #00f3ff;
-            --ui-magenta: #ff003c;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -20,207 +14,77 @@
 
         body {
             font-family: 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
+            background: #0a0a0a;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            overflow: hidden;
-            position: relative;
-        }
-
-        body::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background:
-                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
-            z-index: 2;
         }
 
         .container {
             text-align: center;
-            z-index: 10;
             width: 90%;
-            max-width: 800px;
-            padding: 20px;
+            max-width: 500px;
         }
 
         .title {
-            font-size: clamp(2rem, 8vw, 5rem);
-            color: var(--ui-primary);
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            color: #fcee0a;
             font-weight: 900;
-            letter-spacing: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             text-transform: uppercase;
-            text-shadow:
-                3px 3px 0px var(--ui-magenta),
-                0 0 20px var(--ui-primary);
-            animation: glitch 3s infinite;
-        }
-
-        @keyframes glitch {
-
-            0%,
-            100% {
-                transform: translate(0);
-            }
-
-            20% {
-                transform: translate(-2px, 2px);
-            }
-
-            40% {
-                transform: translate(-2px, -2px);
-            }
-
-            60% {
-                transform: translate(2px, 2px);
-            }
-
-            80% {
-                transform: translate(2px, -2px);
-            }
+            letter-spacing: 4px;
         }
 
         .subtitle {
-            font-size: clamp(0.8rem, 3vw, 1.2rem);
-            color: var(--ui-cyan);
-            letter-spacing: 8px;
+            font-size: 0.9rem;
+            color: #00f3ff;
+            letter-spacing: 6px;
             margin-bottom: 60px;
             text-transform: uppercase;
         }
 
-        .modes {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 30px;
-            margin-top: 50px;
-        }
-
-        .mode-card {
-            background: rgba(0, 0, 0, 0.7);
-            border: 3px solid var(--ui-cyan);
-            padding: 40px 30px;
+        .btn {
+            width: 100%;
+            padding: 25px;
+            margin: 15px 0;
+            border: 2px solid #00f3ff;
+            background: transparent;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: 900;
+            letter-spacing: 3px;
             cursor: pointer;
             transition: all 0.3s ease;
-            clip-path: polygon(0% 0%, 95% 0%, 100% 5%, 100% 100%, 5% 100%, 0% 95%);
-            position: relative;
-            backdrop-filter: blur(10px);
-        }
-
-        .mode-card:hover {
-            transform: translateY(-10px) scale(1.05);
-            border-color: var(--ui-primary);
-            box-shadow:
-                0 0 40px rgba(252, 238, 10, 0.5),
-                inset 0 0 20px rgba(252, 238, 10, 0.1);
-        }
-
-        .mode-card::before {
-            content: "SYSTEM READY";
-            position: absolute;
-            top: 8px;
-            right: 15px;
-            font-size: 0.5rem;
-            color: var(--ui-cyan);
-            opacity: 0.7;
-        }
-
-        .mode-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 0 10px currentColor);
-        }
-
-        .singleplayer .mode-icon {
-            color: #ff6b6b;
-        }
-
-        .multiplayer .mode-icon {
-            color: #4ecdc4;
-        }
-
-        .mode-title {
-            font-size: 1.8rem;
-            font-weight: 900;
-            margin-bottom: 15px;
             text-transform: uppercase;
-            letter-spacing: 3px;
         }
 
-        .singleplayer .mode-title {
-            color: #ff6b6b;
+        .btn:hover {
+            background: #00f3ff;
+            color: #0a0a0a;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 243, 255, 0.4);
         }
 
-        .multiplayer .mode-title {
-            color: #4ecdc4;
+        .btn-multiplayer {
+            border-color: #fcee0a;
         }
 
-        .mode-desc {
-            font-size: 0.95rem;
-            color: rgba(255, 255, 255, 0.8);
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
-
-        .mode-features {
-            list-style: none;
-            margin-top: 20px;
-            text-align: left;
-        }
-
-        .mode-features li {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin: 8px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .mode-features li::before {
-            content: "▸";
-            position: absolute;
-            left: 0;
-            color: var(--ui-cyan);
+        .btn-multiplayer:hover {
+            background: #fcee0a;
+            box-shadow: 0 10px 30px rgba(252, 238, 10, 0.4);
         }
 
         .dev-info {
-            margin-top: 60px;
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            margin-top: 50px;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
         }
 
         .dev-info a {
-            color: var(--ui-cyan);
+            color: #00f3ff;
             text-decoration: none;
-            transition: 0.3s;
-        }
-
-        .dev-info a:hover {
-            color: var(--ui-primary);
-            text-shadow: 0 0 10px var(--ui-primary);
-        }
-
-        @media (max-width: 600px) {
-            .modes {
-                grid-template-columns: 1fr;
-            }
-
-            .title {
-                letter-spacing: 3px;
-            }
-
-            .subtitle {
-                letter-spacing: 4px;
-            }
         }
     </style>
 </head>
@@ -230,37 +94,16 @@
         <h1 class="title">RESIDENCIAL CANAÃ</h1>
         <p class="subtitle">TACTICAL SURVIVAL</p>
 
-        <div class="modes">
-            <!-- Single-Player -->
-            <div class="mode-card singleplayer" onclick="window.location.href='singleplayer.html'">
-                <div class="mode-icon">🎯</div>
-                <h2 class="mode-title">SINGLE-PLAYER</h2>
-                <p class="mode-desc">Enfrente soldados IA em combate offline</p>
-                <ul class="mode-features">
-                    <li>Jogue offline (sem internet)</li>
-                    <li>20-60 bots configuráveis</li>
-                    <li>3 níveis de dificuldade</li>
-                    <li>Treinamento perfeito</li>
-                </ul>
-            </div>
+        <button class="btn btn-multiplayer" onclick="window.location.href='multiplayer.html'">
+            🌐 MULTIPLAYER
+        </button>
 
-            <!-- Multiplayer -->
-            <div class="mode-card multiplayer" onclick="window.location.href='multiplayer.html'">
-                <div class="mode-icon">🌐</div>
-                <h2 class="mode-title">MULTIPLAYER</h2>
-                <p class="mode-desc">Batalhe online com jogadores reais</p>
-                <ul class="mode-features">
-                    <li>Até 100 jogadores online</li>
-                    <li>Bots de IA opcionais</li>
-                    <li>Salas privadas com código</li>
-                    <li>Jogue com amigos pelo celular</li>
-                </ul>
-            </div>
-        </div>
+        <button class="btn" onclick="window.location.href='singleplayer.html'">
+            🎯 SINGLE-PLAYER
+        </button>
 
         <div class="dev-info">
-            <a href="https://www.instagram.com/_nildoxz/" target="_blank">// DEVELOPER: _nildoxz</a>
-            <a href="https://www.instagram.com/_nildoxz/" target="_blank">Canaã dos Carajás - 2026</a>
+            <a href="https://www.instagram.com/_nildoxz/" target="_blank">_nildoxz</a> • 2026
         </div>
     </div>
 </body>
