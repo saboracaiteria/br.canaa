@@ -1586,258 +1586,257 @@
             socket.on('game-started', (data) => {
                 handleGameStarted(data);
             });
-        }
 
-        function handleGameStarted(data) {
-            document.getElementById('lobby-screen').classList.add('hidden');
-            document.getElementById('game-container').style.display = 'block';
-            document.getElementById('hud').style.display = 'block';
+            function handleGameStarted(data) {
+                document.getElementById('lobby-screen').classList.add('hidden');
+                document.getElementById('game-container').style.display = 'block';
+                document.getElementById('hud').style.display = 'block';
 
-            cfg.sens = parseInt(document.getElementById('cfg-sens').value) * 0.0003;
-            cfg.fov = parseInt(document.getElementById('cfg-fov').value);
+                cfg.sens = parseInt(document.getElementById('cfg-sens').value) * 0.0003;
+                cfg.fov = parseInt(document.getElementById('cfg-fov').value);
 
-            // NOVO: Configurar bots do servidor
-            initialBotCount = data.botCount || 0;
-            cfg.bots = initialBotCount;
-            cfg.diff = data.botDifficulty || 2;
+                // NOVO: Configurar bots do servidor
+                initialBotCount = data.botCount || 0;
+                cfg.bots = initialBotCount;
+                cfg.diff = data.botDifficulty || 2;
 
-            // NOVO: Configurar modo de jogo e equipe
-            gameMode = data.gameMode || 'solo';
-            if (data.players[myPlayerId]) {
-                myTeamId = data.players[myPlayerId].teamId;
-                playerLives = data.players[myPlayerId].lives || 5;
-            }
-
-            // NOVO: Inicializar Voice Chat
-            if (window.VoiceChat && !voiceChat) {
-                voiceChat = new VoiceChat(socket, myPlayerId);
-                voiceChat.initialize().then(success => {
-                    if (success) {
-                        console.log('[VOICE CHAT] Inicializado');
-                        setupVoiceChatUI();
-                    }
-                });
-            }
-
-            // NOVO: Configurar inputs do PC
-            setupInputs();
-
-            setupThree();
-            setupMinimap();
-            isPlaying = true;
-            startZoneTimer();
-
-            // Criar jogadores remotos
-            Object.values(data.players).forEach(playerState => {
-                if (playerState.id !== myPlayerId) {
-                    createRemotePlayer(playerState);
+                // NOVO: Configurar modo de jogo e equipe
+                gameMode = data.gameMode || 'solo';
+                if (data.players[myPlayerId]) {
+                    myTeamId = data.players[myPlayerId].teamId;
+                    playerLives = data.players[myPlayerId].lives || 5;
                 }
-            });
 
-            // NOVO: Atualizar HUD com vidas e equipe
-            document.getElementById('lives-display').style.display = 'flex';
-            document.getElementById('lives-count').innerText = playerLives;
-            updateTeamDisplay();
-
-            // Iniciar envio de posição
-            positionUpdateInterval = setInterval(() => {
-                if (isMultiplayer && socket && playerGroup) {
-                    socket.emit('player-move', {
-                        position: { x: playerGroup.position.x, y: playerGroup.position.y, z: playerGroup.position.z },
-                        rotation: { yaw: cameraYaw, pitch: cameraPitch }
+                // NOVO: Inicializar Voice Chat
+                if (window.VoiceChat && !voiceChat) {
+                    voiceChat = new VoiceChat(socket, myPlayerId);
+                    voiceChat.initialize().then(success => {
+                        if (success) {
+                            console.log('[VOICE CHAT] Inicializado');
+                            setupVoiceChatUI();
+                        }
                     });
                 }
-            }, 50); // 20 vezes por segundo
-        }
 
-        // NOVO: Relay de bots do servidor
-        socket.on('bots-update', (botsData) => {
-            if (!isHost) {
-                botsData.forEach((botState, index) => {
-                    if (index < bots.length) {
-                        const bot = bots[index];
-                        bot.position.set(botState.pos.x, botState.pos.y, botState.pos.z);
-                        bot.rotation.y = botState.rot || 0;
-                        bot.userData.hp = botState.health;
+                // NOVO: Configurar inputs do PC
+                setupInputs();
+
+                setupThree();
+                setupMinimap();
+                isPlaying = true;
+                startZoneTimer();
+
+                // Criar jogadores remotos
+                Object.values(data.players).forEach(playerState => {
+                    if (playerState.id !== myPlayerId) {
+                        createRemotePlayer(playerState);
                     }
                 });
-            }
-        });
 
-        socket.on('player-moved', (data) => {
-            if (remotePlayers.has(data.playerId)) {
-                const remotePlayer = remotePlayers.get(data.playerId);
-                remotePlayer.state.position = data.position;
-                remotePlayer.state.rotation = data.rotation;
-            }
-        });
+                // NOVO: Atualizar HUD com vidas e equipe
+                document.getElementById('lives-display').style.display = 'flex';
+                document.getElementById('lives-count').innerText = playerLives;
+                updateTeamDisplay();
 
-        socket.on('players-state', (playersState) => {
-            Object.entries(playersState).forEach(([playerId, state]) => {
-                if (playerId !== myPlayerId && remotePlayers.has(playerId)) {
-                    remotePlayers.get(playerId).state = state;
+                // Iniciar envio de posição
+                positionUpdateInterval = setInterval(() => {
+                    if (isMultiplayer && socket && playerGroup) {
+                        socket.emit('player-move', {
+                            position: { x: playerGroup.position.x, y: playerGroup.position.y, z: playerGroup.position.z },
+                            rotation: { yaw: cameraYaw, pitch: cameraPitch }
+                        });
+                    }
+                }, 50); // 20 vezes por segundo
+            }
+
+            // NOVO: Relay de bots do servidor
+            socket.on('bots-update', (botsData) => {
+                if (!isHost) {
+                    botsData.forEach((botState, index) => {
+                        if (index < bots.length) {
+                            const bot = bots[index];
+                            bot.position.set(botState.pos.x, botState.pos.y, botState.pos.z);
+                            bot.rotation.y = botState.rot || 0;
+                            bot.userData.hp = botState.health;
+                        }
+                    });
                 }
             });
-        });
 
-        socket.on('bullet-fired', (data) => {
-            if (data.shooterId !== myPlayerId) {
-                const from = new THREE.Vector3(data.from.x, data.from.y, data.from.z);
-                const to = new THREE.Vector3(data.to.x, data.to.y, data.to.z);
-                spawnBullet('remote', from, to, data.shooterId);
-            }
-        });
-
-        socket.on('player-eliminated', (data) => {
-            addKillLog(`${data.killerName} ⚔️ ${data.victimName}`);
-
-            if (data.victimId === myPlayerId) {
-                showMsg("ELIMINADO", `Você foi eliminado por ${data.killerName}`);
-            }
-
-            if (remotePlayers.has(data.victimId)) {
-                const playerData = remotePlayers.get(data.victimId);
-                scene.remove(playerData.model);
-                if (playerData.nametag) playerData.nametag.remove();
-                remotePlayers.delete(data.victimId);
-            }
-        });
-
-        socket.on('player-damaged', (data) => {
-            if (data.playerId === myPlayerId) {
-                health = data.health;
-                armor = data.armor;
-                triggerHitmarker();
-            }
-        });
-
-        socket.on('zone-update', (data) => {
-            zoneRadius = data.radius;
-            if (zoneMesh) zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
-        });
-
-        socket.on('grenade-thrown', (data) => {
-            if (data.playerId !== myPlayerId) {
-                const g = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12), new THREE.MeshStandardMaterial({ color: data.type === 'explosive' ? 0x222222 : 0xeeeeee }));
-                g.position.set(data.position.x, data.position.y, data.position.z);
-                g.userData = { vel: new THREE.Vector3(data.velocity.x, data.velocity.y, data.velocity.z), life: 120, type: data.type, hasStopped: false };
-                scene.add(g);
-                grenades.push(g);
-            }
-        });
-
-        // NOVO: Jogador morreu (mas vai respawnar)
-        socket.on('player-died', (data) => {
-            if (data.victimId === myPlayerId) {
-                handlePlayerDeath(data);
-            }
-            addKillLog(`${data.killerName} ⚔️ ${data.victimName} (${data.livesRemaining} ❤️)`);
-        });
-
-        // NOVO: Atualizar lista de salas
-        socket.on('room-list-updated', () => {
-            const roomListScreen = document.getElementById('room-list-screen');
-            if (roomListScreen && !roomListScreen.classList.contains('hidden')) {
-                refreshRoomList();
-            }
-        });
-
-        // NOVO: Atualizar estados dos jogadores (incluindo vidas)
-        socket.on('players-state', (playersState) => {
-            Object.entries(playersState).forEach(([playerId, state]) => {
-                if (playerId === myPlayerId) {
-                    // Atualizar próprias vidas
-                    if (state.lives !== undefined && state.lives !== playerLives) {
-                        playerLives = state.lives;
-                        document.getElementById('lives-count').innerText = playerLives;
-                    }
-
-                    // Atualizar posição se estava respawnando
-                    if (state.isRespawning === false && isRespawning === true) {
-                        playerGroup.position.set(state.position.x, state.position.y, state.position.z);
-                        health = state.health;
-                        armor = state.armor;
-                    }
-
-                    isRespawning = state.isRespawning || false;
-                } else if (remotePlayers.has(playerId)) {
-                    const remotePlayer = remotePlayers.get(playerId);
-                    remotePlayer.state = state;
+            socket.on('player-moved', (data) => {
+                if (remotePlayers.has(data.playerId)) {
+                    const remotePlayer = remotePlayers.get(data.playerId);
+                    remotePlayer.state.position = data.position;
+                    remotePlayer.state.rotation = data.rotation;
                 }
             });
-        });
 
-        socket.on('game-over', (data) => {
-            let title = "FIM DE JOGO";
-            let body = "";
+            socket.on('players-state', (playersState) => {
+                Object.entries(playersState).forEach(([playerId, state]) => {
+                    if (playerId !== myPlayerId && remotePlayers.has(playerId)) {
+                        remotePlayers.get(playerId).state = state;
+                    }
+                });
+            });
 
-            if (data.teamId) {
-                // Vitória por equipe
-                const isMyTeam = data.teamId === myTeamId;
-                if (isMyTeam) {
+            socket.on('bullet-fired', (data) => {
+                if (data.shooterId !== myPlayerId) {
+                    const from = new THREE.Vector3(data.from.x, data.from.y, data.from.z);
+                    const to = new THREE.Vector3(data.to.x, data.to.y, data.to.z);
+                    spawnBullet('remote', from, to, data.shooterId);
+                }
+            });
+
+            socket.on('player-eliminated', (data) => {
+                addKillLog(`${data.killerName} ⚔️ ${data.victimName}`);
+
+                if (data.victimId === myPlayerId) {
+                    showMsg("ELIMINADO", `Você foi eliminado por ${data.killerName}`);
+                }
+
+                if (remotePlayers.has(data.victimId)) {
+                    const playerData = remotePlayers.get(data.victimId);
+                    scene.remove(playerData.model);
+                    if (playerData.nametag) playerData.nametag.remove();
+                    remotePlayers.delete(data.victimId);
+                }
+            });
+
+            socket.on('player-damaged', (data) => {
+                if (data.playerId === myPlayerId) {
+                    health = data.health;
+                    armor = data.armor;
+                    triggerHitmarker();
+                }
+            });
+
+            socket.on('zone-update', (data) => {
+                zoneRadius = data.radius;
+                if (zoneMesh) zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
+            });
+
+            socket.on('grenade-thrown', (data) => {
+                if (data.playerId !== myPlayerId) {
+                    const g = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12), new THREE.MeshStandardMaterial({ color: data.type === 'explosive' ? 0x222222 : 0xeeeeee }));
+                    g.position.set(data.position.x, data.position.y, data.position.z);
+                    g.userData = { vel: new THREE.Vector3(data.velocity.x, data.velocity.y, data.velocity.z), life: 120, type: data.type, hasStopped: false };
+                    scene.add(g);
+                    grenades.push(g);
+                }
+            });
+
+            // NOVO: Jogador morreu (mas vai respawnar)
+            socket.on('player-died', (data) => {
+                if (data.victimId === myPlayerId) {
+                    handlePlayerDeath(data);
+                }
+                addKillLog(`${data.killerName} ⚔️ ${data.victimName} (${data.livesRemaining} ❤️)`);
+            });
+
+            // NOVO: Atualizar lista de salas
+            socket.on('room-list-updated', () => {
+                const roomListScreen = document.getElementById('room-list-screen');
+                if (roomListScreen && !roomListScreen.classList.contains('hidden')) {
+                    refreshRoomList();
+                }
+            });
+
+            // NOVO: Atualizar estados dos jogadores (incluindo vidas)
+            socket.on('players-state', (playersState) => {
+                Object.entries(playersState).forEach(([playerId, state]) => {
+                    if (playerId === myPlayerId) {
+                        // Atualizar próprias vidas
+                        if (state.lives !== undefined && state.lives !== playerLives) {
+                            playerLives = state.lives;
+                            document.getElementById('lives-count').innerText = playerLives;
+                        }
+
+                        // Atualizar posição se estava respawnando
+                        if (state.isRespawning === false && isRespawning === true) {
+                            playerGroup.position.set(state.position.x, state.position.y, state.position.z);
+                            health = state.health;
+                            armor = state.armor;
+                        }
+
+                        isRespawning = state.isRespawning || false;
+                    } else if (remotePlayers.has(playerId)) {
+                        const remotePlayer = remotePlayers.get(playerId);
+                        remotePlayer.state = state;
+                    }
+                });
+            });
+
+            socket.on('game-over', (data) => {
+                let title = "FIM DE JOGO";
+                let body = "";
+
+                if (data.teamId) {
+                    // Vitória por equipe
+                    const isMyTeam = data.teamId === myTeamId;
+                    if (isMyTeam) {
+                        title = "BOOYAH!";
+                        body = "Sua equipe venceu!";
+                    } else {
+                        title = "DERROTA";
+                        body = "Outra equipe venceu";
+                    }
+                } else if (data.winnerId === myPlayerId) {
                     title = "BOOYAH!";
-                    body = "Sua equipe venceu!";
+                    body = "Você venceu a partida!";
                 } else {
                     title = "DERROTA";
-                    body = "Outra equipe venceu";
+                    body = `${data.winnerName} venceu`;
                 }
-            } else if (data.winnerId === myPlayerId) {
-                title = "BOOYAH!";
-                body = "Você venceu a partida!";
-            } else {
-                title = "DERROTA";
-                body = `${data.winnerName} venceu`;
-            }
 
-            // Mostrar mensagem com botão de retorno
-            const panel = document.getElementById('game-msg');
-            document.getElementById('msg-title').innerText = title;
-            document.getElementById('msg-body').innerText = body;
+                // Mostrar mensagem com botão de retorno
+                const panel = document.getElementById('game-msg');
+                document.getElementById('msg-title').innerText = title;
+                document.getElementById('msg-body').innerText = body;
 
-            // Limpar botões antigos
-            const existingBtn = document.getElementById('btn-return-lobby');
-            if (existingBtn) existingBtn.remove();
+                // Limpar botões antigos
+                const existingBtn = document.getElementById('btn-return-lobby');
+                if (existingBtn) existingBtn.remove();
 
-            const btn = document.createElement('button');
-            btn.id = 'btn-return-lobby';
-            btn.className = 'menu-btn';
-            btn.style.marginTop = '20px';
-            btn.innerText = 'VOLTAR AO LOBBY';
-            btn.onclick = () => {
-                socket.emit('player-restart');
-                btn.innerText = 'AGUARDANDO...';
-                btn.disabled = true;
-            };
+                const btn = document.createElement('button');
+                btn.id = 'btn-return-lobby';
+                btn.className = 'menu-btn';
+                btn.style.marginTop = '20px';
+                btn.innerText = 'VOLTAR AO LOBBY';
+                btn.onclick = () => {
+                    socket.emit('player-restart');
+                    btn.innerText = 'AGUARDANDO...';
+                    btn.disabled = true;
+                };
 
-            document.getElementById('msg-content').appendChild(btn); // Assume estrutura
-            panel.style.display = 'block';
-            isPlaying = false;
-            document.exitPointerLock();
-        });
+                document.getElementById('msg-content').appendChild(btn); // Assume estrutura
+                panel.style.display = 'block';
+                isPlaying = false;
+                document.exitPointerLock();
+            });
 
-        // NOVO: Sala reiniciada pelo host
-        socket.on('room-reset', () => {
-            document.getElementById('game-msg').style.display = 'none';
-            document.getElementById('game-container').style.display = 'none';
-            document.getElementById('hud').style.display = 'none';
-            document.getElementById('lobby-screen').classList.remove('hidden'); // Volta pro lobby da sala
+            // NOVO: Sala reiniciada pelo host
+            socket.on('room-reset', () => {
+                document.getElementById('game-msg').style.display = 'none';
+                document.getElementById('game-container').style.display = 'none';
+                document.getElementById('hud').style.display = 'none';
+                document.getElementById('lobby-screen').classList.remove('hidden'); // Volta pro lobby da sala
 
-            // Se for host, reabilita o botão de iniciar
-            if (isHost) {
-                document.getElementById('lobby-start-btn').style.display = 'block';
-                document.getElementById('lobby-waiting-msg').style.display = 'none';
-            } else {
-                document.getElementById('lobby-start-btn').style.display = 'none';
-                document.getElementById('lobby-waiting-msg').style.display = 'block';
-            }
+                // Se for host, reabilita o botão de iniciar
+                if (isHost) {
+                    document.getElementById('lobby-start-btn').style.display = 'block';
+                    document.getElementById('lobby-waiting-msg').style.display = 'none';
+                } else {
+                    document.getElementById('lobby-start-btn').style.display = 'none';
+                    document.getElementById('lobby-waiting-msg').style.display = 'block';
+                }
 
-            // Resetar variáveis locais
-            bots = [];
-            grenades = [];
-            medkits = [];
-            isPlaying = false;
-            isPaused = false;
-        });
+                // Resetar variáveis locais
+                bots = [];
+                grenades = [];
+                medkits = [];
+                isPlaying = false;
+                isPaused = false;
+            });
         }
 
         // Atualizar jogadores remotos
