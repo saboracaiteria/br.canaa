@@ -233,6 +233,29 @@ class Room {
     this.zoneShrinking = true;
     console.log(`[SALA ${this.code}] Jogo iniciado - Modo: ${this.gameMode}, Jogadores: ${this.players.size}, Bots: ${this.botCount}`);
   }
+
+  resetForLobby() {
+    this.gameStarted = false;
+    this.zoneRadius = 500;
+    this.zoneCenter = { x: 0, z: 0 };
+    this.zoneShrinking = false;
+    this.gasPauseCount = 0;
+    this.gasPauseTimer = 0;
+
+    // Resetar estado dos jogadores mantendo a conexão
+    this.players.forEach(player => {
+      player.position = { x: 30, y: 2, z: 0 };
+      player.rotation = { yaw: 0, pitch: 0 };
+      player.health = 100;
+      player.armor = 100;
+      player.kills = 0;
+      player.alive = true;
+      player.lives = 5;
+      player.isRespawning = false;
+      player.respawnTimer = 0;
+      player.currentWeapon = 'AR';
+    });
+  }
 }
 
 // ============================================
@@ -299,10 +322,8 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (room.gameStarted) {
-      socket.emit('error', { message: 'Jogo já iniciado' });
-      return;
-    }
+    // Permite Late Join (entrar com jogo iniciado)
+    // if (room.gameStarted) { ... } REMOVIDO
 
     const playerState = room.addPlayer(socket.id, playerName);
     players.set(socket.id, { playerId: playerState.id, roomCode: roomCode });
@@ -513,6 +534,21 @@ io.on('connection', (socket) => {
     const player = room.players.get(playerData.playerId);
     if (player) {
       player.currentWeapon = data.weaponType;
+    }
+  });
+
+  // ========== REINICIAR JOGO (VOLTAR AO LOBBY) ==========
+  socket.on('player-restart', () => {
+    const playerData = players.get(socket.id);
+    if (!playerData) return;
+
+    const room = rooms.get(playerData.roomCode);
+    if (!room) return;
+
+    // Apenas o host pode reiniciar para todos (por enquanto, lógica simples)
+    if (room.hostId === playerData.playerId) {
+      room.resetForLobby();
+      io.to(playerData.roomCode).emit('room-reset');
     }
   });
 
