@@ -380,6 +380,15 @@ io.on('connection', (socket) => {
     });
   });
 
+  // ========== SINCRONIZAÇÃO DE BOTS (HOST AUTHORITY) ==========
+  socket.on('update-bots', (botsData) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    // Relay para outros jogadores na sala (exceto o host que enviou)
+    socket.to(player.roomCode).emit('bots-update', botsData);
+  });
+
   // ========== ATIRAR ==========
   socket.on('player-shoot', (data) => {
     const playerData = players.get(socket.id);

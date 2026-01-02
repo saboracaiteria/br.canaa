@@ -1321,6 +1321,9 @@
             document.getElementById('btn-run').onclick = (e) => { isRunning = !isRunning; e.target.classList.toggle('active', isRunning); };
             document.getElementById('btn-swap-nade').onclick = (e) => { grenadeType = (grenadeType === 'explosive' ? 'smoke' : 'explosive'); e.target.innerHTML = `BOMBA<br>(${grenadeType === 'explosive' ? 'EXPL' : 'FUMA'})`; };
             document.getElementById('btn-switch-weapon').onclick = (e) => { currentWeapon = currentWeapon === 'AR' ? 'SNIPER' : 'AR'; e.target.innerHTML = `ARMA<br>(${currentWeapon === 'AR' ? 'FUZIL' : 'SNIPER'})`; };
+
+            // NOVO: Configurar inputs do PC
+            setupInputs();
         }
 
         function checkPathObstructedBySmoke(from, to) {
@@ -1628,6 +1631,88 @@
             updateMinimap(); renderer.render(scene, camera);
         }
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+        setupInputs();
+
+        // ============================================
+        // INPUTS E CONTROLES (NOVO)
+        // ============================================
+        function setupInputs() {
+            // Mouse (Câmera e Tiro)
+            document.addEventListener('mousedown', (e) => {
+                if (!isPlaying || isPaused) return;
+
+                // Travar ponteiro ao clicar
+                if (document.pointerLockElement !== document.body) {
+                    document.body.requestPointerLock();
+                    return;
+                }
+
+                if (e.button === 0) { // Botão esquerdo
+                    isShooting = true;
+                    // Se for mobile/touch simulation no PC
+                    if (currentWeapon === 'AR') fireFocusTimer = 0;
+                } else if (e.button === 2) { // Botão direito
+                    isADS = true;
+                    updateADS();
+                }
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (e.button === 0) isShooting = false;
+                if (e.button === 2) {
+                    isADS = false;
+                    updateADS();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body && !isPaused && isPlaying) {
+                    const sens = cfg.sens || 0.002;
+                    cameraYaw -= e.movementX * sens;
+                    cameraPitch -= e.movementY * sens;
+                    // Limitar pitch (olhar pra cima/baixo)
+                    cameraPitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraPitch));
+                }
+            });
+
+            // Teclado (Movimento e Ações)
+            document.addEventListener('keydown', (e) => {
+                if (!isPlaying) return;
+
+                // ESC - Pause/Menu
+                if (e.code === 'Escape') {
+                    togglePauseMenu();
+                    if (isPaused) {
+                        document.exitPointerLock();
+                    } else {
+                        document.body.requestPointerLock();
+                    }
+                    return;
+                }
+
+                if (isPaused) return;
+
+                keys[e.code] = true;
+
+                // Ações instantâneas
+                if (e.code === 'KeyR') reloadWeapon();
+                if (e.code === 'Space' && jumps > 0) { vY = 0.4; jumps--; }
+                if (e.code === 'Digit1') switchWeapon('AR');
+                if (e.code === 'Digit2') switchWeapon('SNIPER');
+                if (e.code === 'KeyF') {
+                    // Interagir / Trocar granada
+                    grenadeType = grenadeType === 'explosive' ? 'smoke' : 'explosive';
+                    // Atualizar UI se existir
+                }
+                if (e.code === 'ShiftLeft') isRunning = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+                if (e.code === 'ShiftLeft') isRunning = false;
+            });
+        }
     </script>
 </body>
 

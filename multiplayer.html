@@ -1193,6 +1193,8 @@
         let zoneTimer = 100, zoneRadius = 500, zoneActive = false;
         let initialBotCount = 20, houseData = [];
         let gasPauseCount = 0, gasPauseTimer = 0;
+        let isHost = false; // HOST AUTHORITY FOR BOTS
+        let lastBotUpdate = 0;
 
         const ray = new THREE.Raycaster();
         const keys = {};
@@ -1435,6 +1437,7 @@
                 myPlayerId = data.playerId;
                 currentRoomCode = data.roomCode;
                 myTeamId = data.playerState.teamId; // Salvar ID da equipe
+                isHost = true; // Sou o host
 
                 document.getElementById('lobby-code-display').innerText = currentRoomCode;
                 document.getElementById('create-room-screen').classList.add('hidden');
@@ -1465,6 +1468,7 @@
             socket.on('room-joined', (data) => {
                 myPlayerId = data.playerId;
                 currentRoomCode = data.roomCode;
+                isHost = false; // Não sou o host
 
                 document.getElementById('lobby-code-display').innerText = currentRoomCode;
                 document.getElementById('join-room-screen').classList.add('hidden');
@@ -1501,6 +1505,26 @@
 
         // Configurar listeners multiplayer
         function setupMultiplayerListeners() {
+            // NOVO: Sincronização de bots (Host Authority)
+            socket.on('bots-update', (botsData) => {
+                if (!isHost) {
+                    botsData.forEach((botState, index) => {
+                        if (index < bots.length) {
+                            const bot = bots[index];
+                            if (botState.health > 0) {
+                                bot.position.set(botState.pos.x, botState.pos.y, botState.pos.z);
+                                if (botState.rot) bot.rotation.y = botState.rot;
+                                bot.userData.health = botState.health;
+                            } else {
+                                // Bot morreu, esconder/desativar
+                                bot.position.y = -1000;
+                                bot.userData.health = 0;
+                            }
+                        }
+                    });
+                }
+            });
+
             socket.on('player-joined', (data) => {
                 const currentPlayers = Array.from(document.querySelectorAll('.player-item')).map(el => el.innerText.replace('🎮 ', ''));
                 currentPlayers.push(data.playerState.name);
@@ -1536,6 +1560,53 @@
                     playerLives = data.players[myPlayerId].lives || 5;
                 }
 
+                // NOVO: Inicializar Voice Chat
+                if (window.VoiceChat) {
+                    voiceChat = new VoiceChat(socket, myPlayerId);
+                    voiceChat.initialize().then(success => {
+                        if (success) {
+                            console.log('[VOICE CHAT] Inicializado');
+                            // Setup do botão PTT
+                            const btnVoice = document.getElementById('btn-voice');
+                            if (btnVoice) {
+                                btnVoice.onpointerdown = (e) => {
+                                    e.preventDefault();
+                                    isPushToTalkActive = true;
+                                    voiceChat.startTalking();
+                                    btnVoice.classList.add('active');
+                                };
+                                btnVoice.onpointerup = (e) => {
+                                    e.preventDefault();
+                                    isPushToTalkActive = false;
+                                    voiceChat.stopTalking();
+                                    btnVoice.classList.remove('active');
+                                };
+                                // Mute toggle com long press
+                                let pressTimer;
+                                btnVoice.onpointerdown = (e) => {
+                                    e.preventDefault();
+                                    pressTimer = setTimeout(() => {
+                                        voiceChat.toggleMute();
+                                        btnVoice.classList.toggle('muted', voiceChat.isMuted);
+                                    }, 500);
+                                    isPushToTalkActive = true;
+                                    voiceChat.startTalking();
+                                    btnVoice.classList.add('active');
+                                };
+                                btnVoice.onpointerup = (e) => {
+                                    clearTimeout(pressTimer);
+                                    isPushToTalkActive = false;
+                                    voiceChat.stopTalking();
+                                    btnVoice.classList.remove('active');
+                                };
+                            }
+                        }
+                    });
+                }
+
+                // NOVO: Configurar inputs do PC
+                setupInputs();
+
                 setupThree();
                 setupMinimap();
                 isPlaying = true;
@@ -1547,42 +1618,6 @@
                         createRemotePlayer(playerState);
                     }
                 });
-
-                // NOVO: Inicializar Voice Chat
-                if (window.VoiceChat) {
-                    voiceChat = new VoiceChat(socket, myPlayerId);
-                    voiceChat.initialize().then(success => {
-                        if (success) {
-                            console.log('[VOICE CHAT] Inicializado');
-                            const playerIds = Object.keys(data.players).filter(id => id !== myPlayerId);
-                            voiceChat.connectToPeers(playerIds);
-
-                            // Setup botão voice chat
-                            const btnVoice = document.getElementById('btn-voice');
-                            let pressTimer;
-
-                            btnVoice.addEventListener('pointerdown', (e) => {
-                                pressTimer = setTimeout(() => {
-                                    const isMuted = voiceChat.toggleMute();
-                                    btnVoice.classList.toggle('muted', isMuted);
-                                }, 1000);
-
-                                isPushToTalkActive = true;
-                                voiceChat.setPushToTalk(true);
-                                btnVoice.classList.add('active');
-                            });
-
-                            btnVoice.addEventListener('pointerup', () => {
-                                clearTimeout(pressTimer);
-                                isPushToTalkActive = false;
-                                voiceChat.setPushToTalk(false);
-                                btnVoice.classList.remove('active');
-                            });
-                        } else {
-                            document.getElementById('btn-voice').style.display = 'none';
-                        }
-                    });
-                }
 
                 // NOVO: Atualizar HUD com vidas e equipe
                 document.getElementById('lives-display').style.display = 'flex';
@@ -2270,6 +2305,10 @@
                     }
                 }
             });
+            document.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+                if (e.code === 'ShiftLeft') isRunning = false;
+            });
             document.getElementById('btn-jump').onpointerdown = () => { if (!isPaused && jumps < 2) { vY = 0.8; jumps++; } };
             document.getElementById('btn-ads').onpointerdown = () => { if (!isPaused) { isADS = true; camera.fov = currentWeapon === 'SNIPER' ? 12 : 30; camera.updateProjectionMatrix(); if (currentWeapon === 'SNIPER') document.getElementById('sniper-scope').style.display = 'block'; } };
             document.getElementById('btn-ads').onpointerup = () => { isADS = false; camera.fov = cfg.fov; camera.updateProjectionMatrix(); document.getElementById('sniper-scope').style.display = 'none'; };
@@ -2338,6 +2377,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            updateBotsNetworking(); // Sync Bots
             if (!isPlaying || isPaused) return;
             const time = clock.getElapsedTime();
             charModel.rotation.y = THREE.MathUtils.lerp(charModel.rotation.y, cameraYaw, 0.3);
@@ -2496,102 +2536,109 @@
                 }
             }
 
-            for (let bi = bots.length - 1; bi >= 0; bi--) {
-                const bot = bots[bi]; bot.position.y += bot.userData.vY;
-                const bRayFloor = new THREE.Raycaster(bot.position.clone().add(new THREE.Vector3(0, 4.0, 0)), new THREE.Vector3(0, -1, 0));
-                const bFloorHits = bRayFloor.intersectObjects(obstacles); const bFloorY = bFloorHits.length > 0 ? bFloorHits[0].point.y : 0;
-                if (bot.position.y > bFloorY) bot.userData.vY -= 0.035; else { bot.position.y = bFloorY; bot.userData.vY = 0; }
+            if (isHost || !isMultiplayer) {
+                for (let bi = bots.length - 1; bi >= 0; bi--) {
+                    const bot = bots[bi];
 
-                bot.userData.jumpTimer -= 0.016;
-                if (bot.userData.jumpTimer <= 0 && bot.position.y <= bFloorY + 0.1) {
-                    bot.userData.vY = 0.6;
-                    bot.userData.jumpTimer = 2 + Math.random() * 3;
-                }
+                    // Se for multiplayer e eu sou o host, broadcast da morte/dano é feito via update-bots
+                    // mas tiros precisam ser processados.
 
-                const distCenter = Math.hypot(bot.position.x, bot.position.z); const distPlayer = bot.position.distanceTo(playerGroup.position);
+                    bot.position.y += bot.userData.vY;
+                    const bRayFloor = new THREE.Raycaster(bot.position.clone().add(new THREE.Vector3(0, 4.0, 0)), new THREE.Vector3(0, -1, 0));
+                    const bFloorHits = bRayFloor.intersectObjects(obstacles); const bFloorY = bFloorHits.length > 0 ? bFloorHits[0].point.y : 0;
+                    if (bot.position.y > bFloorY) bot.userData.vY -= 0.035; else { bot.position.y = bFloorY; bot.userData.vY = 0; }
 
-                if (distCenter > zoneRadius - 10) {
-                    const moveSafe = new THREE.Vector3(0, 0, 0).sub(bot.position).normalize();
-                    bot.position.add(moveSafe.multiplyScalar(0.85)); bot.lookAt(0, bot.position.y, 0);
-                } else {
-                    let separation = new THREE.Vector3(); for (let other of bots) { if (other === bot) continue; if (bot.position.distanceTo(other.position) < 8.0) separation.add(bot.position.clone().sub(other.position).normalize().multiplyScalar(0.5)); }
-                    if (distPlayer < 12.0) separation.add(bot.position.clone().sub(playerGroup.position).normalize().multiplyScalar(0.6));
+                    bot.userData.jumpTimer -= 0.016;
+                    if (bot.userData.jumpTimer <= 0 && bot.position.y <= bFloorY + 0.1) {
+                        bot.userData.vY = 0.6;
+                        bot.userData.jumpTimer = 2 + Math.random() * 3;
+                    }
 
-                    const isUnderFire = bot.userData.hp < bot.userData.maxHP && distPlayer > 50;
+                    const distCenter = Math.hypot(bot.position.x, bot.position.z); const distPlayer = bot.position.distanceTo(playerGroup.position);
 
-                    if ((distPlayer < 40 || bot.userData.isAggressive) && !isUnderFire) {
-                        bot.userData.isAggressive = true;
-                        if (bot.userData.currentHouse) {
-                            bot.userData.currentHouse.botsInside--;
-                            bot.userData.currentHouse = null;
-                        }
-                        const movePlayer = playerGroup.position.clone().sub(bot.position).normalize();
-                        const sideDir = new THREE.Vector3(-movePlayer.z, 0, movePlayer.x).multiplyScalar(Math.sin(time * 12) * 0.8);
-                        bot.position.add(movePlayer.multiplyScalar(0.75)).add(sideDir).add(separation);
-                        bot.lookAt(playerGroup.position.x, bot.position.y, playerGroup.position.z);
+                    if (distCenter > zoneRadius - 10) {
+                        const moveSafe = new THREE.Vector3(0, 0, 0).sub(bot.position).normalize();
+                        bot.position.add(moveSafe.multiplyScalar(0.85)); bot.lookAt(0, bot.position.y, 0);
                     } else {
-                        if (!bot.userData.currentHouse || isUnderFire) {
-                            let targetDest = null; let minDestDist = Infinity;
+                        let separation = new THREE.Vector3(); for (let other of bots) { if (other === bot) continue; if (bot.position.distanceTo(other.position) < 8.0) separation.add(bot.position.clone().sub(other.position).normalize().multiplyScalar(0.5)); }
+                        if (distPlayer < 12.0) separation.add(bot.position.clone().sub(playerGroup.position).normalize().multiplyScalar(0.6));
 
-                            houseData.forEach(h => {
-                                if (h.botsInside < 2) {
-                                    const d = bot.position.distanceTo(h.position);
-                                    if (d < minDestDist) { minDestDist = d; targetDest = h; }
-                                }
-                            });
+                        const isUnderFire = bot.userData.hp < bot.userData.maxHP && distPlayer > 50;
 
-                            if (!targetDest) {
-                                obstacles.forEach(o => {
-                                    if (o.parent?.userData?.isTree) {
-                                        const d = bot.position.distanceTo(o.position);
-                                        if (d < minDestDist) { minDestDist = d; targetDest = { position: o.position, isTree: true }; }
+                        if ((distPlayer < 40 || bot.userData.isAggressive) && !isUnderFire) {
+                            bot.userData.isAggressive = true;
+                            if (bot.userData.currentHouse) {
+                                bot.userData.currentHouse.botsInside--;
+                                bot.userData.currentHouse = null;
+                            }
+                            const movePlayer = playerGroup.position.clone().sub(bot.position).normalize();
+                            const sideDir = new THREE.Vector3(-movePlayer.z, 0, movePlayer.x).multiplyScalar(Math.sin(time * 12) * 0.8);
+                            bot.position.add(movePlayer.multiplyScalar(0.75)).add(sideDir).add(separation);
+                            bot.lookAt(playerGroup.position.x, bot.position.y, playerGroup.position.z);
+                        } else {
+                            if (!bot.userData.currentHouse || isUnderFire) {
+                                let targetDest = null; let minDestDist = Infinity;
+
+                                houseData.forEach(h => {
+                                    if (h.botsInside < 2) {
+                                        const d = bot.position.distanceTo(h.position);
+                                        if (d < minDestDist) { minDestDist = d; targetDest = h; }
                                     }
                                 });
+
+                                if (!targetDest) {
+                                    obstacles.forEach(o => {
+                                        if (o.parent?.userData?.isTree) {
+                                            const d = bot.position.distanceTo(o.position);
+                                            if (d < minDestDist) { minDestDist = d; targetDest = { position: o.position, isTree: true }; }
+                                        }
+                                    });
+                                }
+
+                                if (targetDest) {
+                                    const destPos = targetDest.position;
+                                    const moveCenter = destPos.clone().sub(bot.position).normalize();
+                                    const zigzag = new THREE.Vector3(-moveCenter.z, 0, moveCenter.x).multiplyScalar(Math.sin(time * 10) * 0.5);
+                                    bot.position.add(moveCenter.multiplyScalar(0.7)).add(zigzag).add(separation);
+                                    bot.lookAt(destPos.x, bot.position.y, destPos.z);
+
+                                    if (minDestDist < 10) {
+                                        if (!targetDest.isTree) {
+                                            bot.userData.currentHouse = targetDest;
+                                            targetDest.botsInside++;
+                                            bot.userData.isAggressive = false;
+                                        }
+                                    }
+                                }
+                            } else {
+                                bot.lookAt(playerGroup.position.x, bot.position.y, playerGroup.position.z);
+                                if (separation.length() > 0.1) bot.position.add(separation);
                             }
+                        }
 
-                            if (targetDest) {
-                                const destPos = targetDest.position;
-                                const moveCenter = destPos.clone().sub(bot.position).normalize();
-                                const zigzag = new THREE.Vector3(-moveCenter.z, 0, moveCenter.x).multiplyScalar(Math.sin(time * 10) * 0.5);
-                                bot.position.add(moveCenter.multiplyScalar(0.7)).add(zigzag).add(separation);
-                                bot.lookAt(destPos.x, bot.position.y, destPos.z);
-
-                                if (minDestDist < 10) {
-                                    if (!targetDest.isTree) {
-                                        bot.userData.currentHouse = targetDest;
-                                        targetDest.botsInside++;
-                                        bot.userData.isAggressive = false;
+                        if ((bot.userData.currentHouse && distPlayer < 100) || bot.userData.isAggressive) {
+                            const bEye = bot.position.clone().add(new THREE.Vector3(0, 3.2, 0));
+                            const tHead = playerGroup.position.clone().add(new THREE.Vector3(0, 2.5, 0));
+                            if (!checkPathObstructedBySmoke(bEye, tHead)) {
+                                const bRay = new THREE.Raycaster(bEye, tHead.clone().sub(bEye).normalize());
+                                const obs = bRay.intersectObjects(obstacles);
+                                const wallHit = obs.find(hit => hit.distance < distPlayer && hit.object.userData.isWall);
+                                if (!wallHit) {
+                                    bot.userData.reactionTimer += 0.016;
+                                    if (bot.userData.reactionTimer > 0.3) {
+                                        if (time - bot.userData.lastShot > (4.4 - cfg.diff)) { spawnBullet('bot', bEye, tHead, bot.userData.id, bot.userData.accuracyCharge); bot.userData.lastShot = time; }
                                     }
                                 }
                             }
-                        } else {
-                            bot.lookAt(playerGroup.position.x, bot.position.y, playerGroup.position.z);
-                            if (separation.length() > 0.1) bot.position.add(separation);
                         }
                     }
-
-                    if ((bot.userData.currentHouse && distPlayer < 100) || bot.userData.isAggressive) {
-                        const bEye = bot.position.clone().add(new THREE.Vector3(0, 3.2, 0));
-                        const tHead = playerGroup.position.clone().add(new THREE.Vector3(0, 2.5, 0));
-                        if (!checkPathObstructedBySmoke(bEye, tHead)) {
-                            const bRay = new THREE.Raycaster(bEye, tHead.clone().sub(bEye).normalize());
-                            const obs = bRay.intersectObjects(obstacles);
-                            const wallHit = obs.find(hit => hit.distance < distPlayer && hit.object.userData.isWall);
-                            if (!wallHit) {
-                                bot.userData.reactionTimer += 0.016;
-                                if (bot.userData.reactionTimer > 0.3) {
-                                    if (time - bot.userData.lastShot > (4.4 - cfg.diff)) { spawnBullet('bot', bEye, tHead, bot.userData.id, bot.userData.accuracyCharge); bot.userData.lastShot = time; }
-                                }
-                            }
-                        }
+                    if (bot.userData.hp <= 0) {
+                        if (bot.userData.currentHouse) bot.userData.currentHouse.botsInside--;
+                        addKillLog(`ELIMINADO: ${bot.userData.name}`);
+                        playerKills++; scene.remove(bot); bots.splice(bi, 1); continue;
                     }
+                    updateNPCHealthBar(bot.userData.hBar, (bot.userData.hp / bot.userData.maxHP) * 100);
                 }
-                if (bot.userData.hp <= 0) {
-                    if (bot.userData.currentHouse) bot.userData.currentHouse.botsInside--;
-                    addKillLog(`ELIMINADO: ${bot.userData.name}`);
-                    playerKills++; scene.remove(bot); bots.splice(bi, 1); continue;
-                }
-                updateNPCHealthBar(bot.userData.hBar, (bot.userData.hp / bot.userData.maxHP) * 100);
             }
 
             for (let i = bullets.length - 1; i >= 0; i--) {
