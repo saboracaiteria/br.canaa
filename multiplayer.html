@@ -1499,20 +1499,6 @@
             });
         }
 
-        // Criar jogador remoto
-        function createRemotePlayer(playerState) {
-            const model = createHumanoid(0x1d7f7f, playerState.id);
-            model.position.set(playerState.position.x, playerState.position.y, playerState.position.z);
-            scene.add(model);
-
-            const nametag = document.createElement('div');
-            nametag.className = 'nametag';
-            nametag.innerText = playerState.name;
-            document.body.appendChild(nametag);
-
-            remotePlayers.set(playerState.id, { model, nametag, state: playerState });
-        }
-
         // Configurar listeners multiplayer
         function setupMultiplayerListeners() {
             socket.on('player-joined', (data) => {
