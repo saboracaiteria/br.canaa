@@ -1,0 +1,55 @@
+// ===========================================
+// INSTRUÇÕES DE INTEGRAÇÃO DO MULTIPLAYER
+// ===========================================
+//
+// PASSO 1: Adicionar este script no multiplayer.html ANTES do <script type="module">
+// Cole o conteúdo de multiplayer-network.js dentro de uma tag <script> regular
+//
+// PASSO 2: No loop de animação (função animate()), adicione estas linhas:
+//
+//    // NO INÍCIO DA FUNÇÃO animate(), adicione:
+//    if (isMultiplayer) {
+//        sendPlayerMovement(); // Enviar posição a cada frame
+//        updateRemotePlayers(); // Atualizar posições dos outros jogadores
+//    }
+//
+// PASSO 3: Ao disparar (onde está spawnBullet), modifique para:
+//
+//    // ANTES:
+//    spawnBullet('player', camera.position.clone(), target, 'player');
+//
+//    // DEPOIS:
+//    spawnBullet('player', camera.position.clone(), target, 'player');
+//    if (isMultiplayer) {
+//        // Verificar se acertou algum jogador remoto
+//        let hitPlayerId = null;
+//        remotePlayers.forEach((playerData, playerId) => {
+//            const playerBox = new THREE.Box3().setFromCenterAndSize(
+//                playerData.model.position.clone().add(new THREE.Vector3(0, 2.4, 0)), 
+//                new THREE.Vector3(3.0, 4.8, 3.0)
+//            );
+//            if (ray.ray.intersectsBox(playerBox)) {
+//                hitPlayerId = playerId;
+//            }
+//        });
+//        sendPlayerShoot(camera.position, target, hitPlayerId);
+//    }
+//
+// PASSO 4: Ao jogar granada (onde cria granada), adicione:
+//
+//    sendGrenadeThrow(g.position, g.userData.vel, grenadeType);
+//
+// PASSO 5: Instalar dependências e rodar servidor:
+//
+//    npm install
+//    npm start
+//
+// PASSO 6: Abrir no navegador:
+//
+//    http://localhost:3000/multiplayer.html
+//
+// ===========================================
+// OBSERVAÇÃO: Como o arquivo original é muito grande e complexo,
+// recomendo que você mesmo faça essas pequenas modificações seguindo
+// os passos acima, ou me peça para fazer modificações específicas.
+// ===========================================
