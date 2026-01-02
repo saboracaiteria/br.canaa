@@ -6,104 +6,300 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Residencial Canaã</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --ui-primary: #fcee0a;
+            --ui-armor: #00d4ff;
+            --ui-danger: #ff003c;
+            --ui-bg: #050505;
+            --ui-cyan: #00f3ff;
+            --ui-magenta: #ff003c;
         }
 
         body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--ui-bg);
             font-family: 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            min-height: 100vh;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .overlay-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 100%);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             color: white;
-        }
-
-        .container {
+            z-index: 1000;
             text-align: center;
-            width: 90%;
-            max-width: 500px;
+            padding: 20px;
+            overflow-y: auto;
         }
 
-        .title {
-            font-size: clamp(2.5rem, 8vw, 4rem);
-            color: #fcee0a;
+        .overlay-screen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .cyber-title {
+            font-size: clamp(1.5rem, 6vw, 4rem);
+            color: var(--ui-primary);
             font-weight: 900;
-            margin-bottom: 10px;
+            letter-spacing: 5px;
+            margin: 0 0 30px 0;
             text-transform: uppercase;
-            letter-spacing: 4px;
+            position: relative;
+            text-shadow: 3px 3px 0px var(--ui-magenta);
         }
 
-        .subtitle {
-            font-size: 0.9rem;
-            color: #00f3ff;
-            letter-spacing: 6px;
-            margin-bottom: 60px;
-            text-transform: uppercase;
-        }
-
-        .btn {
+        .cyber-title::after {
+            content: "TACTICAL SURVIVAL";
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            letter-spacing: 10px;
+            color: var(--ui-cyan);
             width: 100%;
-            padding: 25px;
-            margin: 15px 0;
-            border: 2px solid #00f3ff;
-            background: transparent;
-            color: white;
-            font-size: 1.3rem;
-            font-weight: 900;
-            letter-spacing: 3px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        }
+
+        .config-box {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border: 2px solid var(--ui-cyan);
+            clip-path: polygon(0% 0%, 95% 0%, 100% 5%, 100% 100%, 5% 100%, 0% 95%);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            width: 90%;
+            max-width: 650px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            z-index: 5;
+        }
+
+        .config-box::before {
+            content: "SYSTEM READY";
+            position: absolute;
+            top: 5px;
+            right: 20px;
+            font-size: 0.6rem;
+            color: var(--ui-cyan);
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+        }
+
+        .field label {
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--ui-cyan);
+            margin-bottom: 8px;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .btn:hover {
-            background: #00f3ff;
-            color: #0a0a0a;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 243, 255, 0.4);
+        .field input,
+        .field select {
+            padding: 12px;
+            border-radius: 0;
+            border: none;
+            background: #111;
+            color: white;
+            font-size: 0.9rem;
+            border-left: 3px solid var(--ui-magenta);
+            outline: none;
+            transition: 0.3s;
         }
 
-        .btn-multiplayer {
-            border-color: #fcee0a;
+        .field input:focus {
+            background: #222;
+            border-left-color: var(--ui-primary);
         }
 
-        .btn-multiplayer:hover {
-            background: #fcee0a;
-            box-shadow: 0 10px 30px rgba(252, 238, 10, 0.4);
+        input[type="range"] {
+            appearance: none;
+            height: 4px;
+            background: #333;
+            margin: 15px 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            background: var(--ui-primary);
+            cursor: pointer;
+            border-radius: 0;
+        }
+
+        .btn-main {
+            grid-column: span 2;
+            padding: 18px;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 2px;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+        }
+
+        .btn-play {
+            background: var(--ui-primary);
+            color: #000;
+            margin-top: 10px;
+        }
+
+        .btn-play:hover {
+            background: #fff;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px var(--ui-primary);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--ui-magenta);
+            color: var(--ui-magenta);
+            font-size: 0.8rem;
+            padding: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--ui-magenta);
+            color: white;
         }
 
         .dev-info {
-            margin-top: 50px;
+            grid-column: span 2;
+            margin-top: 15px;
             font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
         }
 
         .dev-info a {
-            color: #00f3ff;
+            color: var(--ui-cyan);
             text-decoration: none;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .dev-info a:hover {
+            color: var(--ui-primary);
+            text-shadow: 0 0 10px var(--ui-primary);
+        }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            .overlay-screen {
+                justify-content: flex-start;
+                padding: 10px;
+            }
+
+            .cyber-title {
+                font-size: 1.5rem;
+                margin-bottom: 20px;
+                letter-spacing: 2px;
+            }
+
+            .cyber-title::after {
+                font-size: 0.5rem;
+                letter-spacing: 4px;
+                bottom: -10px;
+            }
+
+            .config-box {
+                padding: 15px;
+                gap: 10px;
+                max-width: 95%;
+            }
+
+            .field label {
+                font-size: 0.55rem;
+                margin-bottom: 4px;
+            }
+
+            .field input,
+            .field select {
+                padding: 8px;
+                font-size: 0.8rem;
+            }
+
+            input[type="range"] {
+                margin: 8px 0;
+            }
+
+            .btn-main {
+                padding: 12px;
+                font-size: 0.9rem;
+                margin-top: 5px;
+            }
+
+            .btn-secondary {
+                padding: 6px;
+                font-size: 0.7rem;
+            }
+
+            .dev-info {
+                margin-top: 5px;
+                font-size: 0.6rem;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1 class="title">RESIDENCIAL CANAÃ</h1>
-        <p class="subtitle">TACTICAL SURVIVAL</p>
+    <div class="overlay-screen">
+        <div class="cyber-title">RESIDENCIAL CANAÃ</div>
+        <div class="config-box">
+            <div class="field">
+                <label>// Nº SOLDADOS</label>
+                <input type="number" id="bot-count" value="20" min="1" max="60">
+            </div>
+            <div class="field">
+                <label>// DIFICULDADE</label>
+                <select id="bot-diff">
+                    <option value="1">Casual</option>
+                    <option value="2" selected>Normal</option>
+                    <option value="3">Veterano</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>// SENSIBILIDADE [<span id="val-sens-start">55</span>]</label>
+                <input type="range" id="cfg-sens" min="1" max="100" value="55"
+                    oninput="document.getElementById('val-sens-start').innerText=this.value">
+            </div>
+            <div class="field">
+                <label>// FOV [<span id="val-fov-start">75</span>]</label>
+                <input type="range" id="cfg-fov" min="40" max="100" value="75"
+                    oninput="document.getElementById('val-fov-start').innerText=this.value">
+            </div>
 
-        <button class="btn btn-multiplayer" onclick="window.location.href='multiplayer.html'">
-            🌐 MULTIPLAYER
-        </button>
+            <button class="btn-main btn-play" onclick="window.location.href='singleplayer.html'">[ SINGLE PLAYER
+                ]</button>
+            <button class="btn-main btn-play" onclick="window.location.href='multiplayer.html'">[ MULTIPLAYER ]</button>
 
-        <button class="btn" onclick="window.location.href='singleplayer.html'">
-            🎯 SINGLE-PLAYER
-        </button>
-
-        <div class="dev-info">
-            <a href="https://www.instagram.com/_nildoxz/" target="_blank">_nildoxz</a> • 2026
+            <div class="dev-info">
+                <a href="https://www.instagram.com/_nildoxz/" target="_blank">// DEVELOPER: _nildoxz</a>
+                <a href="https://www.instagram.com/_nildoxz/" target="_blank">Canaã dos Carajás - 2026</a>
+            </div>
         </div>
     </div>
 </body>
