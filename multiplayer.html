@@ -1263,17 +1263,36 @@
         // ============================================
         // FUNÇÕES DE NAVEGAÇÃO MULTIPLAYER
         // ============================================
+        window.toggleHudEdit = function () {
+            isEditingHud = !isEditingHud;
+            const elements = document.querySelectorAll('.hud-el');
+            elements.forEach(el => {
+                if (isEditingHud) {
+                    el.style.opacity = '0.7';
+                    el.style.border = '2px dashed var(--ui-cyan)';
+                } else {
+                    el.style.opacity = '1';
+                    el.style.border = 'none';
+                }
+            });
+            const btn = document.getElementById('save-hud-btn');
+            if (btn) btn.style.display = isEditingHud ? 'block' : 'none';
+        };
+
         window.showRoomOptions = function () {
+            console.log('[NAV] Abrindo tela de criar sala...');
             document.getElementById('mode-select-screen').classList.add('hidden');
             document.getElementById('create-room-screen').classList.remove('hidden');
         };
 
         window.showJoinRoom = function () {
+            console.log('[NAV] Abrindo tela de entrar por código...');
             document.getElementById('mode-select-screen').classList.add('hidden');
             document.getElementById('join-room-screen').classList.remove('hidden');
         };
 
         window.backToModeSelect = function () {
+            console.log('[NAV] Voltando para seleção de modo...');
             document.getElementById('create-room-screen').classList.add('hidden');
             document.getElementById('join-room-screen').classList.add('hidden');
             document.getElementById('room-list-screen').classList.add('hidden');
@@ -1282,6 +1301,7 @@
 
         // NOVO: Mostrar lista de salas públicas
         window.showRoomList = function () {
+            console.log('[NAV] Abrindo lista de salas públicas...');
             document.getElementById('mode-select-screen').classList.add('hidden');
             document.getElementById('room-list-screen').classList.remove('hidden');
             refreshRoomList();
