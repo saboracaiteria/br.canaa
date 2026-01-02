@@ -72,7 +72,8 @@
             width: 100%;
         }
 
-        .config-box {
+        /* Menu principal com 3 botões */
+        .main-menu {
             background: rgba(0, 0, 0, 0.85);
             padding: 30px;
             border: 2px solid var(--ui-cyan);
@@ -80,7 +81,42 @@
             box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
             width: 90%;
             max-width: 650px;
-            display: grid;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            z-index: 5;
+        }
+
+        .main-menu::before {
+            content: "// DEVELOPER: _nildoxz";
+            position: absolute;
+            bottom: 5px;
+            right: 20px;
+            font-size: 0.5rem;
+            color: var(--ui-cyan);
+        }
+
+        .main-menu::after {
+            content: "Canaã dos Carajás - 2026";
+            position: absolute;
+            bottom: 5px;
+            left: 20px;
+            font-size: 0.5rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Painel de opções/configurações */
+        .options-panel {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border: 2px solid var(--ui-cyan);
+            clip-path: polygon(0% 0%, 95% 0%, 100% 5%, 100% 100%, 5% 100%, 0% 95%);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            width: 90%;
+            max-width: 650px;
+            display: none;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             position: relative;
@@ -88,19 +124,29 @@
             z-index: 5;
         }
 
-        .config-box::before {
-            content: "SYSTEM READY";
+        .options-panel.active {
+            display: grid;
+        }
+
+        .options-panel::before {
+            content: "CUSTOMIZAR INTERFACE (HUD)";
             position: absolute;
             top: 5px;
-            right: 20px;
-            font-size: 0.6rem;
-            color: var(--ui-cyan);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: var(--ui-magenta);
+            letter-spacing: 2px;
         }
 
         .field {
             display: flex;
             flex-direction: column;
             text-align: left;
+        }
+
+        .field.full-width {
+            grid-column: span 2;
         }
 
         .field label {
@@ -147,7 +193,6 @@
         }
 
         .btn-main {
-            grid-column: span 2;
             padding: 18px;
             border: none;
             cursor: pointer;
@@ -157,26 +202,29 @@
             font-weight: 900;
             letter-spacing: 2px;
             clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
-        }
-
-        .btn-play {
             background: var(--ui-primary);
             color: #000;
-            margin-top: 10px;
         }
 
-        .btn-play:hover {
+        .btn-main:hover {
             background: #fff;
             transform: scale(1.02);
             box-shadow: 0 0 20px var(--ui-primary);
         }
 
         .btn-secondary {
+            grid-column: span 2;
             background: transparent;
             border: 1px solid var(--ui-magenta);
             color: var(--ui-magenta);
             font-size: 0.8rem;
-            padding: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
         }
 
         .btn-secondary:hover {
@@ -184,27 +232,43 @@
             color: white;
         }
 
-        .dev-info {
+        .btn-back {
             grid-column: span 2;
-            margin-top: 15px;
-            font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.6);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-items: center;
-        }
-
-        .dev-info a {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--ui-cyan);
             color: var(--ui-cyan);
-            text-decoration: none;
-            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 12px;
+            cursor: pointer;
             transition: 0.3s;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+            clip-path: polygon(5% 0%, 100% 0%, 95% 100%, 0% 100%);
+            margin-top: 10px;
         }
 
-        .dev-info a:hover {
+        .btn-back:hover {
+            background: var(--ui-cyan);
+            color: #000;
+        }
+
+        .section-divider {
+            grid-column: span 2;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--ui-cyan), transparent);
+            margin: 10px 0;
+        }
+
+        .section-title {
+            grid-column: span 2;
+            font-size: 0.8rem;
             color: var(--ui-primary);
-            text-shadow: 0 0 10px var(--ui-primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 900;
+            text-align: center;
+            margin: 10px 0 5px 0;
         }
 
         @media (orientation: landscape) and (max-height: 500px) {
@@ -225,7 +289,8 @@
                 bottom: -10px;
             }
 
-            .config-box {
+            .main-menu,
+            .options-panel {
                 padding: 15px;
                 gap: 10px;
                 max-width: 95%;
@@ -249,17 +314,12 @@
             .btn-main {
                 padding: 12px;
                 font-size: 0.9rem;
-                margin-top: 5px;
             }
 
-            .btn-secondary {
-                padding: 6px;
+            .btn-secondary,
+            .btn-back {
+                padding: 8px;
                 font-size: 0.7rem;
-            }
-
-            .dev-info {
-                margin-top: 5px;
-                font-size: 0.6rem;
             }
         }
     </style>
@@ -268,11 +328,35 @@
 <body>
     <div class="overlay-screen">
         <div class="cyber-title">RESIDENCIAL CANAÃ</div>
-        <div class="config-box">
-            <div class="field">
-                <label>// Nº SOLDADOS</label>
-                <input type="number" id="bot-count" value="20" min="1" max="60">
+
+        <!-- MENU PRINCIPAL -->
+        <div class="main-menu" id="main-menu">
+            <button class="btn-main" onclick="startSinglePlayer()">[ SINGLE PLAYER ]</button>
+            <button class="btn-main" onclick="startMultiplayer()">[ MULTIPLAYER ]</button>
+            <button class="btn-main" onclick="showOptions()">[ OPÇÕES ]</button>
+        </div>
+
+        <!-- PAINEL DE OPÇÕES/CONFIGURAÇÕES -->
+        <div class="options-panel" id="options-panel">
+            <div class="section-title">// CONFIGURAÇÕES DO JOGADOR</div>
+
+            <div class="field full-width">
+                <label>// NOME DO JOGADOR</label>
+                <input type="text" id="player-name" placeholder="Digite seu nome" value="Guerreiro">
             </div>
+
+            <div class="section-divider"></div>
+            <div class="section-title">// CONFIGURAÇÕES DE JOGO</div>
+
+            <div class="field">
+                <label>// Nº BOTS (SINGLE PLAYER)</label>
+                <input type="number" id="bot-count-sp" value="20" min="0" max="60">
+            </div>
+            <div class="field">
+                <label>// Nº BOTS (MULTIPLAYER)</label>
+                <input type="number" id="bot-count-mp" value="10" min="0" max="40">
+            </div>
+
             <div class="field">
                 <label>// DIFICULDADE</label>
                 <select id="bot-diff">
@@ -281,6 +365,10 @@
                     <option value="3">Veterano</option>
                 </select>
             </div>
+
+            <div class="section-divider"></div>
+            <div class="section-title">// CONFIGURAÇÕES DO HUD</div>
+
             <div class="field">
                 <label>// SENSIBILIDADE [<span id="val-sens-start">55</span>]</label>
                 <input type="range" id="cfg-sens" min="1" max="100" value="55"
@@ -292,16 +380,111 @@
                     oninput="document.getElementById('val-fov-start').innerText=this.value">
             </div>
 
-            <button class="btn-main btn-play" onclick="window.location.href='singleplayer.html'">[ SINGLE PLAYER
-                ]</button>
-            <button class="btn-main btn-play" onclick="window.location.href='multiplayer.html'">[ MULTIPLAYER ]</button>
-
-            <div class="dev-info">
-                <a href="https://www.instagram.com/_nildoxz/" target="_blank">// DEVELOPER: _nildoxz</a>
-                <a href="https://www.instagram.com/_nildoxz/" target="_blank">Canaã dos Carajás - 2026</a>
+            <div class="field">
+                <label>// TAMANHO DOS BOTÕES [<span id="val-btn-size">100</span>%]</label>
+                <input type="range" id="cfg-btn-size" min="50" max="150" value="100"
+                    oninput="document.getElementById('val-btn-size').innerText=this.value">
             </div>
+            <div class="field">
+                <label>// VOLUME [<span id="val-volume">70</span>%]</label>
+                <input type="range" id="cfg-volume" min="0" max="100" value="70"
+                    oninput="document.getElementById('val-volume').innerText=this.value">
+            </div>
+
+            <button class="btn-secondary" onclick="saveSettings()">[ SALVAR CONFIGURAÇÕES ]</button>
+            <button class="btn-back" onclick="backToMenu()">[ VOLTAR ]</button>
         </div>
     </div>
+
+    <script>
+        // Carregar configurações salvas
+        function loadSettings() {
+            const settings = {
+                playerName: localStorage.getItem('playerName') || 'Guerreiro',
+                botCountSP: localStorage.getItem('botCountSP') || '20',
+                botCountMP: localStorage.getItem('botCountMP') || '10',
+                botDiff: localStorage.getItem('botDiff') || '2',
+                sens: localStorage.getItem('sens') || '55',
+                fov: localStorage.getItem('fov') || '75',
+                btnSize: localStorage.getItem('btnSize') || '100',
+                volume: localStorage.getItem('volume') || '70'
+            };
+
+            document.getElementById('player-name').value = settings.playerName;
+            document.getElementById('bot-count-sp').value = settings.botCountSP;
+            document.getElementById('bot-count-mp').value = settings.botCountMP;
+            document.getElementById('bot-diff').value = settings.botDiff;
+            document.getElementById('cfg-sens').value = settings.sens;
+            document.getElementById('cfg-fov').value = settings.fov;
+            document.getElementById('cfg-btn-size').value = settings.btnSize;
+            document.getElementById('cfg-volume').value = settings.volume;
+
+            // Atualizar displays
+            document.getElementById('val-sens-start').innerText = settings.sens;
+            document.getElementById('val-fov-start').innerText = settings.fov;
+            document.getElementById('val-btn-size').innerText = settings.btnSize;
+            document.getElementById('val-volume').innerText = settings.volume;
+        }
+
+        // Salvar configurações
+        function saveSettings() {
+            localStorage.setItem('playerName', document.getElementById('player-name').value);
+            localStorage.setItem('botCountSP', document.getElementById('bot-count-sp').value);
+            localStorage.setItem('botCountMP', document.getElementById('bot-count-mp').value);
+            localStorage.setItem('botDiff', document.getElementById('bot-diff').value);
+            localStorage.setItem('sens', document.getElementById('cfg-sens').value);
+            localStorage.setItem('fov', document.getElementById('cfg-fov').value);
+            localStorage.setItem('btnSize', document.getElementById('cfg-btn-size').value);
+            localStorage.setItem('volume', document.getElementById('cfg-volume').value);
+
+            alert('✓ CONFIGURAÇÕES SALVAS COM SUCESSO!');
+        }
+
+        // Mostrar opções
+        function showOptions() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('options-panel').classList.add('active');
+        }
+
+        // Voltar ao menu
+        function backToMenu() {
+            document.getElementById('options-panel').classList.remove('active');
+            document.getElementById('main-menu').style.display = 'flex';
+        }
+
+        // Iniciar single player
+        function startSinglePlayer() {
+            // Salvar configurações antes de iniciar
+            const params = new URLSearchParams({
+                playerName: document.getElementById('player-name').value,
+                botCount: document.getElementById('bot-count-sp').value,
+                botDiff: document.getElementById('bot-diff').value,
+                sens: document.getElementById('cfg-sens').value,
+                fov: document.getElementById('cfg-fov').value,
+                btnSize: document.getElementById('cfg-btn-size').value,
+                volume: document.getElementById('cfg-volume').value
+            });
+            window.location.href = 'singleplayer.html?' + params.toString();
+        }
+
+        // Iniciar multiplayer
+        function startMultiplayer() {
+            // Salvar configurações antes de iniciar
+            const params = new URLSearchParams({
+                playerName: document.getElementById('player-name').value,
+                botCount: document.getElementById('bot-count-mp').value,
+                botDiff: document.getElementById('bot-diff').value,
+                sens: document.getElementById('cfg-sens').value,
+                fov: document.getElementById('cfg-fov').value,
+                btnSize: document.getElementById('cfg-btn-size').value,
+                volume: document.getElementById('cfg-volume').value
+            });
+            window.location.href = 'multiplayer.html?' + params.toString();
+        }
+
+        // Carregar configurações ao iniciar
+        loadSettings();
+    </script>
 </body>
 
 </html>

@@ -1003,6 +1003,36 @@
         let positionUpdateInterval = null;
 
         // ============================================
+        // CARREGAR CONFIGURAÇÕES
+        // ============================================
+        window.loadConfigs = function () {
+            // Primeiro, verifica parâmetros da URL
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // Aplicar configurações da URL ou localStorage
+            const sens = urlParams.get('sens') || localStorage.getItem('sens') || '55';
+            const fov = urlParams.get('fov') || localStorage.getItem('fov') || '75';
+            const playerName = urlParams.get('playerName') || localStorage.getItem('playerName') || '';
+            const botCount = urlParams.get('botCount') || localStorage.getItem('botCountMP') || '10';
+            const botDiff = urlParams.get('botDiff') || localStorage.getItem('botDiff') || '2';
+
+            document.getElementById('cfg-sens').value = sens;
+            document.getElementById('cfg-fov').value = fov;
+            document.getElementById('val-sens-start').innerText = sens;
+            document.getElementById('val-fov-start').innerText = fov;
+            document.getElementById('player-name-input').value = playerName;
+
+            // Aplicar configurações de bots se existirem na tela
+            const botCountInput = document.getElementById('mp-bot-count');
+            const botDiffInput = document.getElementById('mp-bot-diff');
+            if (botCountInput) botCountInput.value = botCount;
+            if (botDiffInput) botDiffInput.value = botDiff;
+
+            // Salvar no localStorage
+            localStorage.setItem('playerName', playerName);
+        };
+
+        // ============================================
         // FUNÇÕES DE NAVEGAÇÃO MULTIPLAYER
         // ============================================
         window.showRoomOptions = function () {
