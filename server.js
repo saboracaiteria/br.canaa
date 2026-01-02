@@ -52,14 +52,14 @@ class Room {
       currentWeapon: 'AR',
       lastUpdate: Date.now()
     };
-    
+
     this.players.set(playerId, playerState);
     return playerState;
   }
 
   removePlayer(playerId) {
     this.players.delete(playerId);
-    
+
     // Se sala ficar vazia, marcar para limpeza
     if (this.players.size === 0) {
       return true; // Indica que sala deve ser removida
@@ -98,8 +98,8 @@ class Room {
     }
 
     // Pausas quando atingir certos raios
-    if ((this.gasPauseCount === 0 && this.zoneRadius <= 350) || 
-        (this.gasPauseCount === 1 && this.zoneRadius <= 150)) {
+    if ((this.gasPauseCount === 0 && this.zoneRadius <= 350) ||
+      (this.gasPauseCount === 1 && this.zoneRadius <= 150)) {
       this.gasPauseCount++;
       this.gasPauseTimer = 30;
     } else if (this.zoneRadius > 10) {
@@ -140,45 +140,45 @@ io.on('connection', (socket) => {
     const roomCode = generateRoomCode();
     const room = new Room(roomCode, maxPlayers || 50);
     rooms.set(roomCode, room);
-    
+
     const playerState = room.addPlayer(socket.id, playerName);
     players.set(socket.id, { playerId: playerState.id, roomCode: roomCode });
-    
+
     socket.join(roomCode);
-    
+
     socket.emit('room-created', {
       roomCode: roomCode,
       playerId: playerState.id,
       playerState: playerState
     });
-    
+
     console.log(`[SALA CRIADA] ${roomCode} por ${playerName}`);
   });
 
   // ========== ENTRAR EM SALA ==========
   socket.on('join-room', ({ roomCode, playerName }) => {
     const room = rooms.get(roomCode);
-    
+
     if (!room) {
       socket.emit('error', { message: 'Sala não encontrada' });
       return;
     }
-    
+
     if (room.players.size >= room.maxPlayers) {
       socket.emit('error', { message: 'Sala cheia' });
       return;
     }
-    
+
     if (room.gameStarted) {
       socket.emit('error', { message: 'Jogo já iniciado' });
       return;
     }
-    
+
     const playerState = room.addPlayer(socket.id, playerName);
     players.set(socket.id, { playerId: playerState.id, roomCode: roomCode });
-    
+
     socket.join(roomCode);
-    
+
     // Enviar estado atual para o novo jogador
     socket.emit('room-joined', {
       roomCode: roomCode,
@@ -186,13 +186,13 @@ io.on('connection', (socket) => {
       playerState: playerState,
       allPlayers: room.getPlayerStates()
     });
-    
+
     // Notificar outros jogadores
     socket.to(roomCode).emit('player-joined', {
       playerId: playerState.id,
       playerState: playerState
     });
-    
+
     console.log(`[SALA ${roomCode}] ${playerName} entrou (${room.players.size}/${room.maxPlayers})`);
   });
 
@@ -200,15 +200,12 @@ io.on('connection', (socket) => {
   socket.on('start-game', () => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
-    
+
     const room = rooms.get(playerData.roomCode);
     if (!room) return;
-    
-    if (room.players.size < 2) {
-      socket.emit('error', { message: 'Mínimo 2 jogadores para iniciar' });
-      return;
-    }
-    
+
+    // Remover restrição - pode iniciar com qualquer número de jogadores
+
     room.startGame();
     io.to(playerData.roomCode).emit('game-started', {
       players: room.getPlayerStates()
@@ -219,18 +216,18 @@ io.on('connection', (socket) => {
   socket.on('player-move', (data) => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
-    
+
     const room = rooms.get(playerData.roomCode);
     if (!room) return;
-    
+
     const player = room.players.get(playerData.playerId);
     if (!player || !player.alive) return;
-    
+
     // Atualizar estado do jogador
     player.position = data.position;
     player.rotation = data.rotation;
     player.lastUpdate = Date.now();
-    
+
     // Broadcast para outros jogadores
     socket.to(playerData.roomCode).emit('player-moved', {
       playerId: playerData.playerId,
@@ -243,13 +240,13 @@ io.on('connection', (socket) => {
   socket.on('player-shoot', (data) => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
-    
+
     const room = rooms.get(playerData.roomCode);
     if (!room) return;
-    
+
     const shooter = room.players.get(playerData.playerId);
     if (!shooter || !shooter.alive) return;
-    
+
     // Broadcast do tiro para todos
     io.to(playerData.roomCode).emit('bullet-fired', {
       shooterId: playerData.playerId,
@@ -257,13 +254,13 @@ io.on('connection', (socket) => {
       to: data.to,
       weaponType: data.weaponType || 'AR'
     });
-    
+
     // Verificar se acertou algum jogador (validação server-side)
     if (data.hitPlayerId) {
       const target = room.players.get(data.hitPlayerId);
       if (target && target.alive) {
         const damage = data.weaponType === 'SNIPER' ? 400 : 50;
-        
+
         // Aplicar dano
         if (target.armor > 0) {
           target.armor -= damage * 1.5;
@@ -274,20 +271,20 @@ io.on('connection', (socket) => {
         } else {
           target.health -= damage;
         }
-        
+
         // Verificar eliminação
         if (target.health <= 0) {
           target.health = 0;
           target.alive = false;
           shooter.kills++;
-          
+
           io.to(playerData.roomCode).emit('player-eliminated', {
             victimId: data.hitPlayerId,
             victimName: target.name,
             killerId: playerData.playerId,
             killerName: shooter.name
           });
-          
+
           // Verificar vencedor
           const aliveCount = room.getAliveCount();
           if (aliveCount === 1) {
@@ -298,7 +295,7 @@ io.on('connection', (socket) => {
             });
           }
         }
-        
+
         // Enviar atualização de dano
         io.to(playerData.roomCode).emit('player-damaged', {
           playerId: data.hitPlayerId,
@@ -314,10 +311,10 @@ io.on('connection', (socket) => {
   socket.on('throw-grenade', (data) => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
-    
+
     const room = rooms.get(playerData.roomCode);
     if (!room) return;
-    
+
     // Broadcast da granada para todos
     io.to(playerData.roomCode).emit('grenade-thrown', {
       playerId: playerData.playerId,
@@ -331,10 +328,10 @@ io.on('connection', (socket) => {
   socket.on('switch-weapon', (data) => {
     const playerData = players.get(socket.id);
     if (!playerData) return;
-    
+
     const room = rooms.get(playerData.roomCode);
     if (!room) return;
-    
+
     const player = room.players.get(playerData.playerId);
     if (player) {
       player.currentWeapon = data.weaponType;
@@ -349,15 +346,15 @@ io.on('connection', (socket) => {
       if (room) {
         const player = room.players.get(playerData.playerId);
         const playerName = player ? player.name : 'Jogador';
-        
+
         const shouldRemoveRoom = room.removePlayer(playerData.playerId);
-        
+
         // Notificar outros jogadores
         socket.to(playerData.roomCode).emit('player-left', {
           playerId: playerData.playerId,
           playerName: playerName
         });
-        
+
         if (shouldRemoveRoom) {
           rooms.delete(playerData.roomCode);
           console.log(`[SALA REMOVIDA] ${playerData.roomCode}`);
@@ -377,12 +374,12 @@ setInterval(() => {
   const now = Date.now();
   const delta = (now - lastUpdate) / 1000;
   lastUpdate = now;
-  
+
   rooms.forEach((room, roomCode) => {
     if (room.gameStarted) {
       // Atualizar zona
       room.updateZone(delta);
-      
+
       // Enviar estado da zona
       io.to(roomCode).emit('zone-update', {
         radius: room.zoneRadius,
@@ -390,7 +387,7 @@ setInterval(() => {
         paused: room.gasPauseTimer > 0,
         pauseTime: Math.ceil(room.gasPauseTimer)
       });
-      
+
       // Enviar estados dos jogadores (incluindo HP/Armor)
       io.to(roomCode).emit('players-state', room.getPlayerStates());
     }
@@ -406,12 +403,12 @@ function generateRoomCode() {
   for (let i = 0; i < 6; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  
+
   // Garantir código único
   if (rooms.has(code)) {
     return generateRoomCode();
   }
-  
+
   return code;
 }
 
