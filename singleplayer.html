@@ -1073,10 +1073,10 @@
             // Armazenar limbs para animação
             group.userData = {
                 limbs: {
-                    lLeg: lShin, // Usar canela para animação de caminhada
-                    rLeg: rShin,
-                    lArm: lForearm,
-                    rArm: rForearm,
+                    lLeg: lThigh, // Usar coxa para animação de caminhada (rotação)
+                    rLeg: rThigh,
+                    lArm: lUpperArm, // Usar braço superior para animação
+                    rArm: rUpperArm,
                     weapon
                 },
                 hp: 100,
@@ -1133,13 +1133,15 @@
             const group = new THREE.Group();
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.2, 12, 8), new THREE.MeshStandardMaterial({ color: 0x5D4037 }));
             trunk.position.y = 6;
+            trunk.userData.isWall = true; // Tronco é sólido
             const leaves = new THREE.Mesh(new THREE.ConeGeometry(6, 16, 8), new THREE.MeshStandardMaterial({ color: 0x2E7D32, roughness: 0.8 }));
             leaves.position.y = 16;
+            leaves.userData.isSolid = false; // Folhas não são sólidas (player pode passar)
             group.add(trunk, leaves);
             group.position.set(x, 0, z);
             group.userData.isTree = true;
             scene.add(group);
-            obstacles.push(trunk, leaves);
+            obstacles.push(trunk); // Apenas o tronco é obstáculo
         }
 
         function createLighthouse(x, z) {
@@ -1191,8 +1193,8 @@
             const roof = new THREE.Mesh(new THREE.ConeGeometry(s * 0.85, 8, 4), roofMat);
             roof.position.y = h + 4;
             roof.rotation.y = Math.PI / 4;
-            roof.userData.isWall = true;
-            group.add(roof); obstacles.push(roof);
+            roof.userData.isSolid = false; // Teto não tem colisão (evita parede invisível acima)
+            group.add(roof); // Não adicionar à lista de obstacles
 
             const door = new THREE.Mesh(new THREE.BoxGeometry(3.5, 6.5, 0.3), doorMat); door.position.set(-s / 4, 3.25, s / 2 + 0.1); door.userData.isDoor = true; group.add(door);
 
