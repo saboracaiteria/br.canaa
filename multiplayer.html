@@ -896,10 +896,91 @@
             opacity: 0.5;
             border-color: var(--ui-danger);
         }
+
+        /* LOADING SCREEN */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-content h1 {
+            font-size: 2.5rem;
+            color: var(--ui-primary);
+            text-shadow: 0 0 20px var(--ui-primary), 0 0 40px var(--ui-cyan);
+            margin-bottom: 30px;
+            letter-spacing: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        .progress-bar {
+            width: 400px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto 20px;
+            border: 1px solid var(--ui-cyan);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--ui-cyan), var(--ui-primary));
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px var(--ui-primary);
+        }
+
+        .loading-text {
+            color: var(--ui-cyan);
+            font-size: 1rem;
+            letter-spacing: 2px;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
     </style>
 </head>
 
 <body onload="loadConfigs()">
+
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen" class="hidden">
+        <div class="loading-content">
+            <h1>CARREGANDO MAPA</h1>
+            <div class="progress-bar">
+                <div class="progress-fill" id="loading-progress"></div>
+            </div>
+            <p class="loading-text" id="loading-text">Iniciando...</p>
+        </div>
+    </div>
 
     <div id="game-container"></div>
     <div id="sniper-scope">
@@ -2097,6 +2178,14 @@
         function loadExternalModelsMP() {
             const loader = new GLTFLoader();
 
+            // MOSTRAR LOADING SCREEN
+            const loadingScreen = document.getElementById('loading-screen');
+            const loadingProgress = document.getElementById('loading-progress');
+            const loadingText = document.getElementById('loading-text');
+            if (loadingScreen) loadingScreen.classList.remove('hidden');
+            if (loadingProgress) loadingProgress.style.width = '10%';
+            if (loadingText) loadingText.innerText = 'Carregando 4 mapas GLB...';
+
             // Definir 4 posições para os quadrantes (criando mapa 2x maior)
             const mapPositions = [
                 { x: -250, z: -250, label: 'Q1 (NW)' },
@@ -2106,6 +2195,7 @@
             ];
 
             let loadedCount = 0;
+            let totalMeshCount = 0;
 
             // Carregar 4 instâncias do mapa
             mapPositions.forEach((pos, index) => {
@@ -2124,28 +2214,51 @@
                         scene.add(model);
 
                         // Configurar sombras e colisões
+                        let meshCount = 0;
                         model.traverse((child) => {
-                            if (child.isMesh) {
+                            if (child.isMesh && child.geometry) {
                                 child.castShadow = true;
                                 child.receiveShadow = true;
+
+                                // CRÍTICO: Computar bounding box para colisões
+                                child.geometry.computeBoundingBox();
+                                child.geometry.computeBoundingSphere();
 
                                 // Adicionar colisões (exceto objetos decorativos)
                                 if (!child.name.toLowerCase().includes('decoration')) {
                                     child.userData.isWall = true;
                                     obstacles.push(child);
+                                    meshCount++;
                                 }
                             }
                         });
 
+                        totalMeshCount += meshCount;
                         loadedCount++;
+
+                        // Atualizar progresso
+                        const progress = 30 + (loadedCount / mapPositions.length) * 50;
+                        if (loadingProgress) loadingProgress.style.width = `${progress}%`;
+                        if (loadingText) loadingText.innerText = `Carregando ${loadedCount}/${mapPositions.length} mapas...`;
 
                         // Atualizar collision boxes após carregar última instância
                         if (loadedCount === mapPositions.length) {
+                            if (loadingProgress) loadingProgress.style.width = '90%';
+                            if (loadingText) loadingText.innerText = 'Configurando colisões...';
+
+                            scene.updateMatrixWorld(true);
                             updateCollisionBoxes();
-                            console.log('✅ Todos os 4 mapas GLB foram carregados!');
+                            console.log(`✅ Todos os 4 mapas GLB foram carregados! ${totalMeshCount} objetos com colisão`);
+
+                            // OCULTAR LOADING SCREEN
+                            if (loadingProgress) loadingProgress.style.width = '100%';
+                            if (loadingText) loadingText.innerText = 'Concluído!';
+                            setTimeout(() => {
+                                if (loadingScreen) loadingScreen.classList.add('hidden');
+                            }, 500);
                         }
 
-                        console.log(`✅ Mapa ${pos.label} carregado (${loadedCount}/${mapPositions.length})`);
+                        console.log(`✅ Mapa ${pos.label} carregado (${loadedCount}/${mapPositions.length}) - ${meshCount} objetos`);
                     },
                     (xhr) => {
                         const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
