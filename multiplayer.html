@@ -2255,6 +2255,11 @@
                             if (loadingText) loadingText.innerText = 'Concluído!';
                             setTimeout(() => {
                                 if (loadingScreen) loadingScreen.classList.add('hidden');
+
+                                // INICIAR JOGO AGORA (após todos os 4 mapas carregarem)
+                                isPlaying = true;
+                                startZoneTimer();
+                                console.log('🎮 Jogo multiplayer iniciado após carregamento de 4 mapas');
                             }, 500);
                         }
 

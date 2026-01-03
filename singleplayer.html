@@ -1079,7 +1079,10 @@
             loadingProgress.style.width = '30%';
             loadingText.innerText = 'Carregando mapa GLB...';
 
-            setupThree(); setupMinimap(); isPlaying = true; startZoneTimer();
+            // CRÍTICO: NÃO iniciar jogo ainda - só setup da cena
+            setupThree();
+            setupMinimap();
+            // isPlaying e startZoneTimer() serão chamados APÓS mapa carregar
         };
 
         function showMsg(title, body) { isPlaying = false; const panel = document.getElementById('game-msg'); document.getElementById('msg-title').innerText = title; document.getElementById('msg-body').innerText = body; panel.style.display = 'block'; }
@@ -1402,6 +1405,11 @@
                     setTimeout(() => {
                         const loadingScreen = document.getElementById('loading-screen');
                         if (loadingScreen) loadingScreen.classList.add('hidden');
+
+                        // INICIAR JOGO AGORA (após mapa carregar)
+                        isPlaying = true;
+                        startZoneTimer();
+                        console.log('🎮 Jogo iniciado após carregamento do mapa');
                     }, 500);
                 },
                 function (xhr) {
