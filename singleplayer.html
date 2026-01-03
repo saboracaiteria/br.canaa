@@ -812,10 +812,11 @@
     </div>
 
     <script
-        type="importmap"> { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } } </script>
+        type="importmap"> { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } } </script>
 
     <script type="module">
         import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         let scene, camera, renderer, clock, playerGroup, charModel, zoneMesh, sunObj;
         let cameraYaw = 0, cameraPitch = 0, vY = 0, jumps = 0;
@@ -1105,6 +1106,9 @@
 
             createWorld();
 
+            // Carregar modelos 3D externos (poly.pizza, etc)
+            loadExternalModels();
+
             playerGroup = new THREE.Group(); charModel = createHumanoid(0x2E7D32, 'player'); playerGroup.add(charModel); scene.add(playerGroup);
             playerGroup.position.set(30, 2, 0);
 
@@ -1280,6 +1284,82 @@
                     createDetailedHouse(x, z);
                 }
             }
+        }
+
+        // ============================================
+        // SISTEMA DE CARREGAMENTO DE MODELOS 3D
+        // ============================================
+        function loadExternalModels() {
+            const loader = new GLTFLoader();
+
+            // CARREGAR MAPA: fps canaa Map.glb
+            loader.load(
+                'models/fps canaa Map.glb', // Caminho do arquivo GLB
+                function (gltf) {
+                    // Sucesso - modelo carregado
+                    const model = gltf.scene;
+
+                    // Posicionar no centro do mundo
+                    model.position.set(0, 0, 0);
+
+                    // Escala inicial (ajuste se necessário)
+                    model.scale.set(10, 10, 10);
+
+                    // Adicionar à cena
+                    scene.add(model);
+
+                    // Configurar sombras e colisões
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            // Ativar sombras
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+
+                            // Adicionar colisões (exceto objetos decorativos)
+                            if (!child.name.toLowerCase().includes('decoration')) {
+                                child.userData.isWall = true;
+                                obstacles.push(child);
+                            }
+                        }
+                    });
+
+                    // Atualizar collision boxes
+                    updateCollisionBoxes();
+
+                    console.log('✅ Mapa GLB carregado com sucesso: fps canaa Map.glb');
+                },
+                function (xhr) {
+                    // Progresso do carregamento
+                    const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
+                    console.log(`📦 Carregando mapa GLB: ${percent}%`);
+                },
+                function (error) {
+                    // Erro ao carregar
+                    console.error('❌ Erro ao carregar mapa GLB:', error);
+                    console.error('Verifique se o arquivo "fps canaa Map.glb" está na pasta models/');
+                }
+            );
+
+            // EXEMPLO: Carregar prédio
+            /*
+            loader.load('models/building.glb', (gltf) => {
+                const building = gltf.scene;
+                building.position.set(-200, 0, -200);
+                building.scale.set(5, 5, 5);
+                scene.add(building);
+                
+                // Colisões
+                building.traverse((child) => {
+                    if (child.isMesh) {
+                        child.userData.isWall = true;
+                        obstacles.push(child);
+                    }
+                });
+                updateCollisionBoxes();
+            });
+            */
+
+            console.log('💡 Sistema de modelos 3D pronto. Descomente os exemplos acima para usar.');
         }
 
         function setupBotsPeriphery() {
