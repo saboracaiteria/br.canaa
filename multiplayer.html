@@ -2417,16 +2417,7 @@
             animate();
         }
 
-        function updateCollisionBoxes() {
-            obstacleBoxes = [];
-            obstacles.forEach(o => {
-                if (o.geometry && o.userData.isSolid !== false && !o.userData.isGround) {
-                    const b = new THREE.Box3().setFromObject(o);
-                    b.userData = o.userData;
-                    obstacleBoxes.push(b);
-                }
-            });
-        }
+        // updateCollisionBoxes() já definida na linha 2280 - duplicata removida
 
         function createTree(x, z) {
             const group = new THREE.Group();
