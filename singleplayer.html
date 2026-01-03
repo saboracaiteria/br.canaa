@@ -1243,50 +1243,8 @@
         }
 
         function createWorld() {
-            const mapSize = 1000;
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(mapSize * 8, mapSize * 8), new THREE.MeshStandardMaterial({ color: 0x3d7a3d, roughness: 1 }));
-            floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
-            floor.userData.isGround = true;
-            scene.add(floor);
-            obstacles.push(floor);
-            createMountains();
-
-            // MAPA ANTIGO COMENTADO - USANDO GLB AGORA
-            /*
-            createLighthouse(0, 0);
-
-            const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-            const gridSpacing = 160;
-            for (let i = -4; i <= 4; i++) {
-                const roadH = new THREE.Mesh(new THREE.PlaneGeometry(2500, 26), roadMat);
-                roadH.rotation.x = -Math.PI / 2; roadH.position.set(0, 0.1, i * gridSpacing);
-                roadH.userData.isGround = true;
-                scene.add(roadH);
-                const roadV = new THREE.Mesh(new THREE.PlaneGeometry(26, 2500), roadMat);
-                roadV.rotation.x = -Math.PI / 2; roadV.position.set(i * gridSpacing, 0.1, 0);
-                roadV.userData.isGround = true;
-                scene.add(roadV);
-            }
-
-            for (let i = 0; i < 250; i++) {
-                const tx = (Math.random() - 0.5) * 2000;
-                const tz = (Math.random() - 0.5) * 2000;
-                if (Math.hypot(tx, tz) > 60) createTree(tx, tz);
-            }
-
-            for (let a = 0; a < 4; a++) {
-                const ang = (a / 4) * Math.PI * 2;
-                createDetailedHouse(Math.cos(ang) * 60, Math.sin(ang) * 60);
-            }
-
-            for (let rx = -2; rx <= 2; rx++) {
-                for (let rz = -2; rz <= 2; rz++) {
-                    if (Math.abs(rx) < 1 && Math.abs(rz) < 1) continue;
-                    const x = rx * gridSpacing + 50, z = rz * gridSpacing + 50;
-                    createDetailedHouse(x, z);
-                }
-            }
-            */
+            // MUNDO ANTIGO REMOVIDO - USANDO APENAS MAPA GLB
+            // Todo o cenário (chão, montanhas, árvores, etc) vem do arquivo GLB
         }
 
         // ============================================
