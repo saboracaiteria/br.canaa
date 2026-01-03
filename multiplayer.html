@@ -1182,6 +1182,7 @@
 
     <script type="module">
         import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         let scene, camera, renderer, clock, playerGroup, charModel, zoneMesh, sunObj;
         let cameraYaw = 0, cameraPitch = 0, vY = 0, jumps = 0;
@@ -2091,11 +2092,90 @@
         }
 
         // ============================================
+        // CARREGAR MODELOS 3D EXTERNOS (QUADRUPLICADO)
+        // ============================================
+        function loadExternalModelsMP() {
+            const loader = new GLTFLoader();
+
+            // Definir 4 posições para os quadrantes (criando mapa 2x maior)
+            const mapPositions = [
+                { x: -250, z: -250, label: 'Q1 (NW)' },
+                { x: 250, z: -250, label: 'Q2 (NE)' },
+                { x: -250, z: 250, label: 'Q3 (SW)' },
+                { x: 250, z: 250, label: 'Q4 (SE)' }
+            ];
+
+            let loadedCount = 0;
+
+            // Carregar 4 instâncias do mapa
+            mapPositions.forEach((pos, index) => {
+                loader.load(
+                    'models/fps canaa Map.glb',
+                    function (gltf) {
+                        const model = gltf.scene.clone();
+
+                        // Posicionar no quadrante
+                        model.position.set(pos.x, 0, pos.z);
+
+                        // Escala (mesmo do singleplayer)
+                        model.scale.set(10, 10, 10);
+
+                        // Adicionar à cena
+                        scene.add(model);
+
+                        // Configurar sombras e colisões
+                        model.traverse((child) => {
+                            if (child.isMesh) {
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+
+                                // Adicionar colisões (exceto objetos decorativos)
+                                if (!child.name.toLowerCase().includes('decoration')) {
+                                    child.userData.isWall = true;
+                                    obstacles.push(child);
+                                }
+                            }
+                        });
+
+                        loadedCount++;
+
+                        // Atualizar collision boxes após carregar última instância
+                        if (loadedCount === mapPositions.length) {
+                            updateCollisionBoxes();
+                            console.log('✅ Todos os 4 mapas GLB foram carregados!');
+                        }
+
+                        console.log(`✅ Mapa ${pos.label} carregado (${loadedCount}/${mapPositions.length})`);
+                    },
+                    (xhr) => {
+                        const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
+                        console.log(`📦 Carregando mapa ${pos.label}: ${percent}%`);
+                    },
+                    (error) => {
+                        console.error(`❌ Erro ao carregar mapa ${pos.label}:`, error);
+                        console.error('Verifique se o arquivo "fps canaa Map.glb" está na pasta models/');
+                    }
+                );
+            });
+        }
+
+        function updateCollisionBoxes() {
+            obstacleBoxes = [];
+            obstacles.forEach(o => {
+                if (o.geometry && o.userData.isSolid !== false && !o.userData.isGround) {
+                    const b = new THREE.Box3().setFromObject(o);
+                    b.userData = o.userData;
+                    obstacleBoxes.push(b);
+                }
+            });
+        }
+
+        // ============================================
         // INPUTS E CONTROLES (CS-STYLE)
         // ============================================
         // ============================================
         // INPUTS E CONTROLES (CS-STYLE)
-        // ============================================
+        // ===========================================
         let inputsSetup = false;
         function setupInputs() {
             if (inputsSetup) return;
@@ -2895,6 +2975,18 @@
                 };
             }
         }
+
+        // ============================================
+        // CARREGAR MAPAS GLB AO INICIAR
+        // ============================================
+        // Aguardar scene estar disponível e carregar os mapas
+        const checkSceneInterval = setInterval(() => {
+            if (scene && camera) {
+                clearInterval(checkSceneInterval);
+                loadExternalModelsMP();
+                console.log('🗺️ Iniciando carregamento dos 4 mapas GL B...');
+            }
+        }, 100);
 
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
