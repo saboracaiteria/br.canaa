@@ -1210,7 +1210,8 @@
             loadExternalModels();
 
             playerGroup = new THREE.Group(); charModel = createHumanoid(0x2E7D32, 'player'); playerGroup.add(charModel); scene.add(playerGroup);
-            playerGroup.position.set(30, 2, 0);
+            playerGroup.position.set(0, 2, 0); // Player nasce no CENTRO do mapa
+
 
             zoneMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1500, 64, 1, true), new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide }));
             zoneMesh.scale.set(zoneRadius, 1, zoneRadius); zoneMesh.position.y = 750; scene.add(zoneMesh);
