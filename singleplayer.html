@@ -828,6 +828,20 @@
         let initialBotCount = 20, houseData = [];
         let gasPauseCount = 0, gasPauseTimer = 0;
 
+        // DELTA TIME E CONSTANTES DE FÍSICA (em unidades/segundo)
+        let deltaTime = 0;
+        const GRAVITY = 1.5; // Gravidade em unidades/segundo²
+        const PLAYER_SPEED_WALK = 48; // Velocidade de caminhada
+        const PLAYER_SPEED_RUN = 57; // Velocidade de corrida
+        const PLAYER_SPEED_ADS = 19; // Velocidade em ADS
+        const JUMP_VELOCITY = 48; // Velocidade inicial do pulo
+        const BOT_SPEED = 42; // Velocidade dos bots
+        const BOT_GRAVITY = 2.1; // Gravidade dos bots
+        const ZONE_SHRINK_RATE = 7.2; // Taxa de encolhimento da zona por segundo
+        const ARMOR_REGEN_RATE = 9; // Regeneração de armadura por segundo
+        const GRENADE_LIFE_TIME = 2.0; // Tempo de vida da granada em segundos
+        const ZONE_DAMAGE_RATE = 3.0; // Dano da zona por segundo
+
         const ray = new THREE.Raycaster();
         const keys = {};
 
@@ -1005,19 +1019,72 @@
             const group = new THREE.Group();
             const mB = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
             const mS = new THREE.MeshStandardMaterial({ color: 0xffdbac });
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.9, 0.4), mB); torso.position.y = 0.85;
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), mS); head.position.y = 1.55;
-            const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.5), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-            helmet.position.y = 0.15; head.add(helmet);
-            const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), mB); lLeg.position.set(-0.2, 0.4, 0);
-            const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), mB); rLeg.position.set(0.2, 0.4, 0);
-            const lArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), mB); lArm.position.set(-0.45, 0.9, 0);
-            const rArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), mB); rArm.position.set(0.45, 0.9, 0);
-            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 1.2), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-            weapon.position.set(0.45, 0.9, -0.5);
-            group.add(torso, head, lLeg, rLeg, lArm, rArm, weapon);
-            group.userData = { limbs: { lLeg, rLeg, lArm, rArm, weapon }, hp: 100, id: id || Math.random(), vY: 0 };
-            group.scale.set(2, 2, 2);
+
+            // Proporções mais realistas (altura total ~4 unidades antes do scale)
+            // Torso: mais alongado e estreito
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.35), mB);
+            torso.position.y = 1.1; // Centro do torso
+
+            // Cabeça: proporção 1/7 da altura total (~0.57 unidades)
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mS);
+            head.position.y = 1.9; // Topo do torso + metade da cabeça
+
+            // Capacete
+            const helmet = new THREE.Mesh(
+                new THREE.BoxGeometry(0.45, 0.22, 0.45),
+                new THREE.MeshStandardMaterial({ color: 0x222222 })
+            );
+            helmet.position.y = 0.15;
+            head.add(helmet);
+
+            // Pernas: mais compridas (~50% da altura total, divididas em coxa e canela)
+            const lThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), mB);
+            lThigh.position.set(-0.15, 0.35, 0);
+            const rThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), mB);
+            rThigh.position.set(0.15, 0.35, 0);
+
+            // Canelas (parte inferior da perna)
+            const lShin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), mB);
+            lShin.position.set(-0.15, -0.25, 0);
+            const rShin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), mB);
+            rShin.position.set(0.15, -0.25, 0);
+
+            // Braços: mais compridos e finos, divididos em braço superior e antebraço
+            const lUpperArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.18), mB);
+            lUpperArm.position.set(-0.38, 1.25, 0);
+            const rUpperArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.18), mB);
+            rUpperArm.position.set(0.38, 1.25, 0);
+
+            // Antebraços
+            const lForearm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), mB);
+            lForearm.position.set(-0.38, 0.7, 0);
+            const rForearm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), mB);
+            rForearm.position.set(0.38, 0.7, 0);
+
+            // Arma: rifle mais detalhado
+            const weapon = new THREE.Mesh(
+                new THREE.BoxGeometry(0.1, 0.15, 1.0),
+                new THREE.MeshStandardMaterial({ color: 0x111111 })
+            );
+            weapon.position.set(0.38, 0.7, -0.45);
+
+            group.add(torso, head, lThigh, rThigh, lShin, rShin, lUpperArm, rUpperArm, lForearm, rForearm, weapon);
+
+            // Armazenar limbs para animação
+            group.userData = {
+                limbs: {
+                    lLeg: lShin, // Usar canela para animação de caminhada
+                    rLeg: rShin,
+                    lArm: lForearm,
+                    rArm: rForearm,
+                    weapon
+                },
+                hp: 100,
+                id: id || Math.random(),
+                vY: 0
+            };
+
+            group.scale.set(2, 2, 2); // Escala final
             return group;
         }
 
@@ -1313,8 +1380,8 @@
                 const dir = ray.ray.direction.clone().normalize();
                 const force = cameraPitch < -0.2 ? 1.2 : 3.8;
 
-                // Alterado para 120 frames (~2 segundos em 60 FPS)
-                g.userData = { vel: dir.multiplyScalar(force), life: 120, type: grenadeType, hasStopped: false };
+                // Usar tempo real em vez de frames
+                g.userData = { vel: dir.multiplyScalar(force), life: GRENADE_LIFE_TIME, type: grenadeType, hasStopped: false };
                 scene.add(g); grenades.push(g);
             };
 
@@ -1362,6 +1429,9 @@
         function animate() {
             requestAnimationFrame(animate);
             if (!isPlaying || isPaused) return;
+
+            // Calcular delta time (limitado para evitar grandes saltos)
+            deltaTime = Math.min(clock.getDelta(), 0.1);
             const time = clock.getElapsedTime();
             charModel.rotation.y = THREE.MathUtils.lerp(charModel.rotation.y, cameraYaw, 0.3);
 
@@ -1372,7 +1442,10 @@
             let inputX = moveVec.x; let inputY = moveVec.y;
             if (keys['KeyW']) inputY = 1; if (keys['KeyS']) inputY = -1;
             if (keys['KeyA']) inputX = -1; if (keys['KeyD']) inputX = 1;
-            const speed = (isRunning ? 1.19 : 0.8) * (isADS ? 0.4 : 1);
+
+            // Aplicar delta time ao movimento
+            const baseSpeed = isRunning ? PLAYER_SPEED_RUN : PLAYER_SPEED_WALK;
+            const speed = baseSpeed * (isADS ? 0.4 : 1) * deltaTime;
 
             if (Math.hypot(inputX, inputY) > 0.1) {
                 const moveAngle = Math.atan2(-inputX, inputY);
@@ -1399,34 +1472,34 @@
                 for (let bot of bots) { if (bot.position.distanceTo(worldPos) < 6 && bot.userData.hp < bot.userData.maxHP) { bot.userData.hp = Math.min(bot.userData.maxHP, bot.userData.hp + 40); scene.remove(mk); medkits.splice(i, 1); playSfx('hit'); break; } }
             }
 
-            playerGroup.position.y += vY;
+            playerGroup.position.y += vY * deltaTime * 60; // Manter compatibilidade com velocidade anterior
             const rayFloor = new THREE.Raycaster(playerGroup.position.clone().add(new THREE.Vector3(0, 8.0, 0)), new THREE.Vector3(0, -1, 0));
             const floorHits = rayFloor.intersectObjects(obstacles);
             let floorY = 0; if (floorHits.length > 0) floorY = floorHits[0].point.y;
-            if (playerGroup.position.y > floorY + 0.15) vY -= 0.025; else { playerGroup.position.y = floorY; vY = 0; jumps = 0; }
+            if (playerGroup.position.y > floorY + 0.15) vY -= GRAVITY * deltaTime; else { playerGroup.position.y = floorY; vY = 0; jumps = 0; }
 
-            if (gasPauseTimer > 0) gasPauseTimer -= 0.016;
+            if (gasPauseTimer > 0) gasPauseTimer -= deltaTime;
             if (zoneActive && zoneRadius > 10) {
                 if (gasPauseTimer <= 0) {
                     if ((gasPauseCount === 0 && zoneRadius <= 350) || (gasPauseCount === 1 && zoneRadius <= 150)) {
                         gasPauseCount++; gasPauseTimer = 30;
                     } else {
-                        zoneRadius -= 0.12; zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
+                        zoneRadius -= ZONE_SHRINK_RATE * deltaTime; zoneMesh.scale.set(zoneRadius, 1, zoneRadius);
                     }
                 }
-                if (Math.hypot(playerGroup.position.x, playerGroup.position.z) > zoneRadius) { health -= 0.05; lastDamageTime = time; }
+                if (Math.hypot(playerGroup.position.x, playerGroup.position.z) > zoneRadius) { health -= ZONE_DAMAGE_RATE * deltaTime; lastDamageTime = time; }
                 const timerEl = document.getElementById('timer-display');
                 if (gasPauseTimer > 0) timerEl.innerText = `PRÓX. ZONA EM: ${Math.ceil(gasPauseTimer)}s`;
                 else timerEl.innerText = `ZONA EM MOVIMENTO`;
             }
-            if (time - lastDamageTime > 6 && armor < 100) armor = Math.min(100, armor + 0.15);
+            if (time - lastDamageTime > 6 && armor < 100) armor = Math.min(100, armor + ARMOR_REGEN_RATE * deltaTime);
             document.getElementById('hp-bar').style.width = health + '%'; document.getElementById('armor-bar').style.width = armor + '%';
 
             for (let i = grenades.length - 1; i >= 0; i--) {
                 const g = grenades[i];
                 if (!g.userData.hasStopped) {
-                    g.position.add(g.userData.vel);
-                    g.userData.vel.y -= 0.025;
+                    g.position.add(g.userData.vel.clone().multiplyScalar(deltaTime * 60)); // Manter compatibilidade
+                    g.userData.vel.y -= GRAVITY * deltaTime * 1.5; // Gravidade da granada um pouco mais forte
                     const gRay = new THREE.Raycaster(g.position, g.userData.vel.clone().normalize(), 0, g.userData.vel.length() + 0.5);
                     const gHits = gRay.intersectObjects(obstacles);
                     if (gHits.length > 0 || g.position.y < 0.25) {
@@ -1435,7 +1508,8 @@
                         if (g.position.y < 0.25) g.position.y = 0.25;
                     }
                 }
-                if (--g.userData.life <= 0) {
+                g.userData.life -= deltaTime; // Agora é baseado em tempo real
+                if (g.userData.life <= 0) {
                     if (g.userData.type === 'explosive') {
                         playSfx('exp');
                         for (let k = 0; k < 15; k++) {
@@ -1484,7 +1558,7 @@
             charModel.userData.limbs.weapon.lookAt(target);
 
             if (isShooting) {
-                fireFocusTimer += 0.016;
+                fireFocusTimer += deltaTime;
                 const focusThreshold = currentWeapon === 'SNIPER' ? 0.4 : 0.25;
 
                 if (fireFocusTimer > focusThreshold) {
@@ -1496,12 +1570,12 @@
             }
 
             for (let bi = bots.length - 1; bi >= 0; bi--) {
-                const bot = bots[bi]; bot.position.y += bot.userData.vY;
+                const bot = bots[bi]; bot.position.y += bot.userData.vY * deltaTime * 60;
                 const bRayFloor = new THREE.Raycaster(bot.position.clone().add(new THREE.Vector3(0, 4.0, 0)), new THREE.Vector3(0, -1, 0));
                 const bFloorHits = bRayFloor.intersectObjects(obstacles); const bFloorY = bFloorHits.length > 0 ? bFloorHits[0].point.y : 0;
-                if (bot.position.y > bFloorY) bot.userData.vY -= 0.035; else { bot.position.y = bFloorY; bot.userData.vY = 0; }
+                if (bot.position.y > bFloorY) bot.userData.vY -= BOT_GRAVITY * deltaTime; else { bot.position.y = bFloorY; bot.userData.vY = 0; }
 
-                bot.userData.jumpTimer -= 0.016;
+                bot.userData.jumpTimer -= deltaTime;
                 if (bot.userData.jumpTimer <= 0 && bot.position.y <= bFloorY + 0.1) {
                     bot.userData.vY = 0.6;
                     bot.userData.jumpTimer = 2 + Math.random() * 3;
@@ -1511,7 +1585,7 @@
 
                 if (distCenter > zoneRadius - 10) {
                     const moveSafe = new THREE.Vector3(0, 0, 0).sub(bot.position).normalize();
-                    bot.position.add(moveSafe.multiplyScalar(0.85)); bot.lookAt(0, bot.position.y, 0);
+                    bot.position.add(moveSafe.multiplyScalar(BOT_SPEED * deltaTime * 0.5)); bot.lookAt(0, bot.position.y, 0);
                 } else {
                     let separation = new THREE.Vector3(); for (let other of bots) { if (other === bot) continue; if (bot.position.distanceTo(other.position) < 8.0) separation.add(bot.position.clone().sub(other.position).normalize().multiplyScalar(0.5)); }
                     if (distPlayer < 12.0) separation.add(bot.position.clone().sub(playerGroup.position).normalize().multiplyScalar(0.6));
@@ -1526,7 +1600,7 @@
                         }
                         const movePlayer = playerGroup.position.clone().sub(bot.position).normalize();
                         const sideDir = new THREE.Vector3(-movePlayer.z, 0, movePlayer.x).multiplyScalar(Math.sin(time * 12) * 0.8);
-                        bot.position.add(movePlayer.multiplyScalar(0.75)).add(sideDir).add(separation);
+                        bot.position.add(movePlayer.multiplyScalar(BOT_SPEED * deltaTime * 0.4)).add(sideDir.multiplyScalar(deltaTime * 60)).add(separation.multiplyScalar(deltaTime * 60));
                         bot.lookAt(playerGroup.position.x, bot.position.y, playerGroup.position.z);
                     } else {
                         if (!bot.userData.currentHouse || isUnderFire) {
@@ -1552,7 +1626,7 @@
                                 const destPos = targetDest.position;
                                 const moveCenter = destPos.clone().sub(bot.position).normalize();
                                 const zigzag = new THREE.Vector3(-moveCenter.z, 0, moveCenter.x).multiplyScalar(Math.sin(time * 10) * 0.5);
-                                bot.position.add(moveCenter.multiplyScalar(0.7)).add(zigzag).add(separation);
+                                bot.position.add(moveCenter.multiplyScalar(BOT_SPEED * deltaTime * 0.35)).add(zigzag.multiplyScalar(deltaTime * 60)).add(separation.multiplyScalar(deltaTime * 60));
                                 bot.lookAt(destPos.x, bot.position.y, destPos.z);
 
                                 if (minDestDist < 10) {
@@ -1577,7 +1651,7 @@
                             const obs = bRay.intersectObjects(obstacles);
                             const wallHit = obs.find(hit => hit.distance < distPlayer && hit.object.userData.isWall);
                             if (!wallHit) {
-                                bot.userData.reactionTimer += 0.016;
+                                bot.userData.reactionTimer += deltaTime;
                                 if (bot.userData.reactionTimer > 0.3) {
                                     if (time - bot.userData.lastShot > (4.4 - cfg.diff)) { spawnBullet('bot', bEye, tHead, bot.userData.id, bot.userData.accuracyCharge); bot.userData.lastShot = time; }
                                 }

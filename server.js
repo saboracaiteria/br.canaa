@@ -41,6 +41,66 @@ class Room {
     this.gasPauseCount = 0;
     this.gasPauseTimer = 0;
     this.createdAt = Date.now();
+
+    // Sistema de spawn points distribuídos
+    this.spawnPoints = this.generateSpawnPoints();
+    this.usedSpawnIndices = new Set();
+  }
+
+  generateSpawnPoints() {
+    // Criar array de spawn points em círculo ao redor do centro
+    const points = [];
+    const numPoints = 50; // Quantidade máxima de spawn points
+    const baseRadius = 200; // Raio do círculo de spawn
+
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (i / numPoints) * Math.PI * 2;
+      const radiusVariation = baseRadius + (Math.random() - 0.5) * 80; // Variação no raio
+      points.push({
+        x: Math.cos(angle) * radiusVariation,
+        z: Math.sin(angle) * radiusVariation
+      });
+    }
+
+    return points;
+  }
+
+  getSpawnPosition() {
+    // Encontrar spawn point mais distante dos outros jogadores
+    let bestSpawn = { x: 0, z: 0 };
+    let maxMinDist = 0;
+
+    // Posições dos jogadores existentes
+    const playerPositions = Array.from(this.players.values()).map(p => p.position);
+
+    if (playerPositions.length === 0) {
+      // Primeiro jogador, usar spawn point aleatório
+      const idx = Math.floor(Math.random() * this.spawnPoints.length);
+      const spawn = this.spawnPoints[idx];
+      return { x: spawn.x, y: 2, z: spawn.z };
+    }
+
+    // Para cada spawn point disponível, calcular a distância mínima para jogadores existentes
+    for (let i = 0; i < this.spawnPoints.length; i++) {
+      const spawn = this.spawnPoints[i];
+
+      // Calcular distância mínima para qualquer jogador
+      let minDist = Infinity;
+      for (const playerPos of playerPositions) {
+        const dx = spawn.x - playerPos.x;
+        const dz = spawn.z - playerPos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        minDist = Math.min(minDist, dist);
+      }
+
+      // Manter o spawn com maior distância mínima
+      if (minDist > maxMinDist) {
+        maxMinDist = minDist;
+        bestSpawn = spawn;
+      }
+    }
+
+    return { x: bestSpawn.x, y: 2, z: bestSpawn.z };
   }
 
   addPlayer(socketId, name) {
@@ -49,7 +109,7 @@ class Room {
       id: playerId,
       socketId: socketId,
       name: name,
-      position: { x: 30, y: 2, z: 0 },
+      position: this.getSpawnPosition(), // Usar sistema de spawn distribuído
       rotation: { yaw: 0, pitch: 0 },
       health: 100,
       armor: 100,
@@ -242,9 +302,12 @@ class Room {
     this.gasPauseCount = 0;
     this.gasPauseTimer = 0;
 
+    // Regenerar spawn points para nova partida
+    this.spawnPoints = this.generateSpawnPoints();
+
     // Resetar estado dos jogadores mantendo a conexão
     this.players.forEach(player => {
-      player.position = { x: 30, y: 2, z: 0 };
+      player.position = this.getSpawnPosition(); // Usar spawn distribuído
       player.rotation = { yaw: 0, pitch: 0 };
       player.health = 100;
       player.armor = 100;
