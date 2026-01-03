@@ -1046,10 +1046,13 @@
             // Exibir nome do jogador
             localStorage.setItem('playerName', playerName);
 
-            // Se veio direto da URL, iniciar imediatamente
+            // REMOVIDO: início automático
+            // O jogo NÃO deve iniciar sozinho
+            /*
             if (urlParams.get('botCount')) {
                 setTimeout(() => initGame(), 500);
             }
+            */
         };
 
         function triggerHitmarker() { const hm = document.getElementById('hitmarker'); hm.style.display = 'block'; playSfx('hit'); setTimeout(() => hm.style.display = 'none', 100); }
@@ -1918,10 +1921,11 @@
 
             // Teclado (Movimento e Ações)
             document.addEventListener('keydown', (e) => {
-                if (!isPlaying) return;
+                // REMOVIDO: if (!isPlaying) return;
+                // Isso bloqueava TODO movimento até mapa carregar
 
-                // ESC - Pause/Menu
-                if (e.code === 'Escape') {
+                // ESC - Pause/Menu (só funciona se jogo estiver rodando)
+                if (e.code === 'Escape' && isPlaying) {
                     togglePauseMenu();
                     if (isPaused) {
                         document.exitPointerLock();
