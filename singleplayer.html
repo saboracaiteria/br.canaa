@@ -1949,13 +1949,20 @@
                 const nextZ = playerGroup.position.clone().add(new THREE.Vector3(0, 0, moveDir.z).multiplyScalar(speed));
                 const pBoxX = new THREE.Box3().setFromCenterAndSize(nextX.clone().add(new THREE.Vector3(0, 2.5, 0)), new THREE.Vector3(0.4, 3.4, 0.4));
                 const pBoxZ = new THREE.Box3().setFromCenterAndSize(nextZ.clone().add(new THREE.Vector3(0, 2.5, 0)), new THREE.Vector3(0.4, 3.4, 0.4));
-                const hitX = hitWalls(nextX, playerRadius);
-                const hitZ = hitWalls(nextZ, playerRadius);
+
+                // Collision detection
+                let hitX = false, hitZ = false;
+                for (let i = 0; i < obstacleBoxes.length; i++) {
+                    const box = obstacleBoxes[i];
+                    if (box.userData?.isRamp || box.userData?.isGround) continue;
+                    if (!hitX && pBoxX.intersectsBox(box)) hitX = true;
+                    if (!hitZ && pBoxZ.intersectsBox(box)) hitZ = true;
+                }
 
                 // COLISÃO DE BORDA DO MAPA (limite de 1000 unidades)
                 const MAP_LIMIT = 1000;
-                if (Math.abs(nextX.x) > MAP_LIMIT) nextX.x = Math.sign(nextX.x) * MAP_LIMIT;
-                if (Math.abs(nextZ.z) > MAP_LIMIT) nextZ.z = Math.sign(nextZ.z) * MAP_LIMIT;
+                if (Math.abs(nextX.x) > MAP_LIMIT) hitX = true;
+                if (Math.abs(nextZ.z) > MAP_LIMIT) hitZ = true;
 
                 if (!hitX) playerGroup.position.x = nextX.x;
                 if (!hitZ) playerGroup.position.z = nextZ.z;
