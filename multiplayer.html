@@ -2889,6 +2889,74 @@
             if (owner === 'player') playSfx(currentWeapon === 'SNIPER' ? 'sniper' : 'shoot');
         }
 
+        // ============================================
+        // SISTEMA DE ANIMAÇÕES PROCEDURAIS
+        // ============================================
+        function animateCharacter(characterGroup, state) {
+            if (!characterGroup || !characterGroup.userData) return;
+
+            const { bones, glbModel } = characterGroup.userData;
+            if (!bones) return; // Sem ossos detectados, não animar
+
+            const { isWalking, isJumping, isShooting, speed, time, jumpVelocity } = state;
+
+            // ANIMAÇÃO DE CAMINHADA (Walking)
+            if (isWalking && bones.leftLeg && bones.rightLeg) {
+                const walkSpeed = speed * 15; // Intensidade da animação
+                const swing = Math.sin(time * walkSpeed) * 0.5;
+
+                // Rotacionar pernas alternadamente
+                bones.leftLeg.rotation.x = swing;
+                bones.rightLeg.rotation.x = -swing;
+
+                // Braços também balançam (inverso das pernas)
+                if (bones.leftArm && bones.rightArm) {
+                    bones.leftArm.rotation.x = -swing * 0.3;
+                    bones.rightArm.rotation.x = swing * 0.3;
+                }
+            } else {
+                // Resetar para posição neutra quando parado
+                if (bones.leftLeg) bones.leftLeg.rotation.x = 0;
+                if (bones.rightLeg) bones.rightLeg.rotation.x = 0;
+                if (bones.leftArm) bones.leftArm.rotation.x = 0;
+                if (bones.rightArm) bones.rightArm.rotation.x = 0;
+            }
+
+            // ANIMAÇÃO DE PULO (Jump)
+            if (isJumping) {
+                if (jumpVelocity > 0) {
+                    // Subindo - pernas flexionadas, braços pra cima
+                    if (bones.leftLeg) bones.leftLeg.rotation.x = Math.PI / 6;
+                    if (bones.rightLeg) bones.rightLeg.rotation.x = Math.PI / 6;
+                    if (bones.leftArm) bones.leftArm.rotation.x = -Math.PI / 4;
+                    if (bones.rightArm) bones.rightArm.rotation.x = -Math.PI / 4;
+                } else {
+                    // Descendo - pernas estendidas preparando aterrissagem
+                    if (bones.leftLeg) bones.leftLeg.rotation.x = -Math.PI / 8;
+                    if (bones.rightLeg) bones.rightLeg.rotation.x = -Math.PI / 8;
+                }
+            }
+
+            // ANIMAÇÃO DE TIRO (Shooting) - Recuo da arma
+            if (isShooting && characterGroup.userData.weapon) {
+                const weapon = characterGroup.userData.weapon;
+
+                // Recuo rápido
+                if (bones.rightHand) {
+                    bones.rightHand.rotation.x = Math.sin(time * 50) * 0.1;
+                }
+
+                // Pequeno shake na arma
+                weapon.rotation.z = Math.sin(time * 40) * 0.05;
+            }
+
+            // ANIMAÇÃO IDLE (Respiração sutil)
+            if (!isWalking && !isJumping && bones.spine) {
+                bones.spine.rotation.y = Math.sin(time * 2) * 0.02;
+                bones.spine.position.y = Math.sin(time * 3) * 0.01;
+            }
+        }
+
         function startZoneTimer() { zoneActive = true; }
 
         function animate() {
@@ -2931,10 +2999,19 @@
                 }
                 if (!hitX) playerGroup.position.x = nextX.x;
                 if (!hitZ) playerGroup.position.z = nextZ.z;
-                charModel.userData.limbs.lLeg.rotation.x = Math.sin(time * 20) * 0.6; charModel.userData.limbs.rLeg.rotation.x = -Math.sin(time * 20) * 0.6;
-            } else {
-                // Idle animation support if needed
             }
+
+            // ANIMAR PERSONAGEM DO PLAYER
+            const isWalking = Math.hypot(inputX, inputY) > 0.1;
+            const isJumping = playerGroup.position.y > floorY + 0.2; // Está no ar
+            animateCharacter(playerGroup, {
+                isWalking: isWalking,
+                isJumping: isJumping,
+                isShooting: isShooting,
+                speed: isWalking ? (isRunning ? 1.5 : 1.0) : 0,
+                time: time,
+                jumpVelocity: vY
+            });
 
             for (let i = medkits.length - 1; i >= 0; i--) {
                 const mk = medkits[i]; const worldPos = new THREE.Vector3(); mk.getWorldPosition(worldPos);
@@ -3168,6 +3245,19 @@
                         addKillLog(`ELIMINADO: ${bot.userData.name}`);
                         playerKills++; scene.remove(bot); bots.splice(bi, 1); continue;
                     }
+
+                    // ANIMAR BOT
+                    const botMoving = bot.userData.lastPos ? bot.position.distanceTo(bot.userData.lastPos) > 0.01 : false;
+                    animateCharacter(bot, {
+                        isWalking: botMoving,
+                        isJumping: bot.position.y > bFloorY + 0.2,
+                        isShooting: time - bot.userData.lastShot < 0.2,
+                        speed: 1.0,
+                        time: time,
+                        jumpVelocity: bot.userData.vY
+                    });
+                    bot.userData.lastPos = bot.position.clone();
+
                     updateNPCHealthBar(bot.userData.hBar, (bot.userData.hp / bot.userData.maxHP) * 100);
                 }
             }
