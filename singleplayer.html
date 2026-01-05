@@ -1116,67 +1116,148 @@
         }
         function updateNPCHealthBar(sprite, hp) { const { canvas, texture } = sprite.userData; const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, 64, 8); ctx.fillStyle = hp > 50 ? '#0f0' : hp > 20 ? '#ff0' : '#f00'; ctx.fillRect(0, 0, (hp / 100) * 64, 8); texture.needsUpdate = true; }
 
-        function createHumanoid(color, id) {
+        // ============================================
+        // SISTEMA DE CARREGAMENTO DE PERSONAGENS GLB
+        // ============================================
+        const glbCharacterCache = {
+            soldier: null,    // Modelo do player principal (Soldier.glb)
+            punk: null,       // Modelo do punk player (Punk.glb)
+            characterBase: null  // Modelo dos bots (Character Base.glb)
+        };
+
+        // Função para carregar todos os modelos de personagens
+        function preloadCharacterModels(callback) {
+            const loader = new GLTFLoader();
+            let loaded = 0;
+            const total = 3;
+
+            function checkComplete() {
+                loaded++;
+                if (loaded === total && callback) callback();
+            }
+
+            // Carregar Soldier (Player Principal)
+            loader.load('models/Soldier.glb', (gltf) => {
+                glbCharacterCache.soldier = gltf.scene.clone();
+                console.log('✅ Soldier.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Soldier.glb:', error);
+                checkComplete();
+            });
+
+            // Carregar Punk Player
+            loader.load('models/Punk.glb', (gltf) => {
+                glbCharacterCache.punk = gltf.scene.clone();
+                console.log('✅ Punk.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Punk.glb:', error);
+                checkComplete();
+            });
+
+            // Carregar Character Base (Bots)
+            loader.load('models/Character Base.glb', (gltf) => {
+                glbCharacterCache.characterBase = gltf.scene.clone();
+                console.log('✅ Character Base.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Character Base.glb:', error);
+                checkComplete();
+            });
+        }
+
+        // Função para criar personagem a partir de GLB
+        function createCharacterFromGLB(type, id) {
+            let modelTemplate = null;
+
+            if (type === 'player') {
+                modelTemplate = glbCharacterCache.soldier;
+            } else if (type === 'punk') {
+                modelTemplate = glbCharacterCache.punk;
+            } else if (type === 'bot') {
+                modelTemplate = glbCharacterCache.characterBase;
+            }
+
+            // Fallback: se o modelo não carregou, usar procedural
+            if (!modelTemplate) {
+                console.warn(`⚠️ Modelo GLB "${type}" não disponível, usando fallback procedural`);
+                return createHumanoidFallback(type === 'player' ? 0x2E7D32 : 0x7f1d1d, id);
+            }
+
+            const group = new THREE.Group();
+            const model = modelTemplate.clone();
+
+            // Ajustar escala do modelo GLB
+            model.scale.set(2, 2, 2);
+
+            // Configurar sombras
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            group.add(model);
+
+            // Dados do personagem (compatível com o sistema antigo)
+            group.userData = {
+                hp: 100,
+                id: id || Math.random(),
+                vY: 0,
+                glbModel: model,
+                limbs: {
+                    lLeg: null,
+                    rLeg: null,
+                    lArm: null,
+                    rArm: null,
+                    weapon: null
+                }
+            };
+
+            return group;
+        }
+
+        // Fallback: modelo procedural antigo
+        function createHumanoidFallback(color, id) {
             const group = new THREE.Group();
             const mB = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
             const mS = new THREE.MeshStandardMaterial({ color: 0xffdbac });
 
-            // Proporções mais realistas (altura total ~4 unidades antes do scale)
-            // Torso: mais alongado e estreito
             const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.35), mB);
-            torso.position.y = 1.1; // Centro do torso
-
-            // Cabeça: proporção 1/7 da altura total (~0.57 unidades)
+            torso.position.y = 1.1;
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mS);
-            head.position.y = 1.9; // Topo do torso + metade da cabeça
-
-            // Capacete
-            const helmet = new THREE.Mesh(
-                new THREE.BoxGeometry(0.45, 0.22, 0.45),
-                new THREE.MeshStandardMaterial({ color: 0x222222 })
-            );
+            head.position.y = 1.9;
+            const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.45), new THREE.MeshStandardMaterial({ color: 0x222222 }));
             helmet.position.y = 0.15;
             head.add(helmet);
-
-            // Pernas: mais compridas (~50% da altura total, divididas em coxa e canela)
             const lThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), mB);
             lThigh.position.set(-0.15, 0.35, 0);
             const rThigh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), mB);
             rThigh.position.set(0.15, 0.35, 0);
-
-            // Canelas (parte inferior da perna)
             const lShin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), mB);
             lShin.position.set(-0.15, -0.25, 0);
             const rShin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), mB);
             rShin.position.set(0.15, -0.25, 0);
-
-            // Braços: mais compridos e finos, divididos em braço superior e antebraço
             const lUpperArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.18), mB);
             lUpperArm.position.set(-0.38, 1.25, 0);
             const rUpperArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.18), mB);
             rUpperArm.position.set(0.38, 1.25, 0);
-
-            // Antebraços
             const lForearm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), mB);
             lForearm.position.set(-0.38, 0.7, 0);
             const rForearm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), mB);
             rForearm.position.set(0.38, 0.7, 0);
-
-            // Arma: rifle mais detalhado
-            const weapon = new THREE.Mesh(
-                new THREE.BoxGeometry(0.1, 0.15, 1.0),
-                new THREE.MeshStandardMaterial({ color: 0x111111 })
-            );
+            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 1.0), new THREE.MeshStandardMaterial({ color: 0x111111 }));
             weapon.position.set(0.38, 0.7, -0.45);
 
             group.add(torso, head, lThigh, rThigh, lShin, rShin, lUpperArm, rUpperArm, lForearm, rForearm, weapon);
 
-            // Armazenar limbs para animação
             group.userData = {
                 limbs: {
-                    lLeg: lThigh, // Usar coxa para animação de caminhada (rotação)
+                    lLeg: lThigh,
                     rLeg: rThigh,
-                    lArm: lUpperArm, // Usar braço superior para animação
+                    lArm: lUpperArm,
                     rArm: rUpperArm,
                     weapon
                 },
@@ -1185,11 +1266,24 @@
                 vY: 0
             };
 
-            group.scale.set(2, 2, 2); // Escala final
+            group.scale.set(2, 2, 2);
             return group;
         }
 
+        // Manter compatibilidade com código antigo
+        function createHumanoid(color, id) {
+            let type = 'bot';
+            if (color === 0x2E7D32) type = 'player';
+
+            return createCharacterFromGLB(type, id);
+        }
+
         function setupThree() {
+            // CARREGAR MODELOS DE PERSONAGENS GLB
+            preloadCharacterModels(() => {
+                console.log('🎮 Todos os modelos de personagens carregados!');
+            });
+
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0006);
             clock = new THREE.Clock();
@@ -1338,6 +1432,8 @@
                 const mountain = new THREE.Mesh(new THREE.ConeGeometry(width, height, 4), mountainMat);
                 mountain.position.set(x, height / 2 - 5, z);
                 mountain.rotation.y = Math.random() * Math.PI;
+                mountain.userData.isGround = true; // Impedir que o box de colisão trave o jogador
+                mountain.userData.isWall = true;   // Mas ainda para as balas
                 scene.add(mountain);
                 obstacles.push(mountain);
             }
@@ -1382,9 +1478,17 @@
                             child.geometry.computeBoundingBox();
                             child.geometry.computeBoundingSphere();
 
+                            // Detectar chão pelo nome
+                            const name = child.name.toLowerCase();
+                            const isGround = name.includes('ground') || name.includes('floor') || name.includes('chao') ||
+                                name.includes('terrain') || name.includes('plane') || name.includes('road') ||
+                                name.includes('asphalt') || name.includes('grass') || name.includes('sand') ||
+                                name.includes('sidewalk') || name.includes('rua') || name.includes('estrada');
+
                             // Adicionar colisões (exceto objetos decorativos)
-                            if (!child.name.toLowerCase().includes('decoration')) {
-                                child.userData.isWall = true;
+                            if (!name.includes('decoration')) {
+                                child.userData.isWall = true; // Todos os objetos não decorativos são paredes
+                                if (isGround) child.userData.isGround = true; // Se for chão, marca como chão também
                                 obstacles.push(child);
                                 meshCount++;
                             }
@@ -1536,7 +1640,7 @@
                     }
                 }
             });
-            document.getElementById('btn-jump').onpointerdown = () => { if (!isPaused && jumps < 2) { vY = 0.8; jumps++; } };
+            document.getElementById('btn-jump').onpointerdown = () => { if (!isPaused && jumps < 2) { vY = 0.85; jumps++; } };
             document.getElementById('btn-ads').onpointerdown = () => { if (!isPaused) { isADS = true; camera.fov = currentWeapon === 'SNIPER' ? 12 : 30; camera.updateProjectionMatrix(); if (currentWeapon === 'SNIPER') document.getElementById('sniper-scope').style.display = 'block'; } };
             document.getElementById('btn-ads').onpointerup = () => { isADS = false; camera.fov = cfg.fov; camera.updateProjectionMatrix(); document.getElementById('sniper-scope').style.display = 'none'; };
             document.getElementById('btn-settings').onclick = togglePauseMenu;
@@ -1624,7 +1728,7 @@
                 let hitX = false, hitZ = false;
                 for (let i = 0; i < obstacleBoxes.length; i++) {
                     const box = obstacleBoxes[i];
-                    if (box.userData?.isRamp) continue;
+                    if (box.userData?.isRamp || box.userData?.isGround) continue;
                     if (!hitX && pBoxX.intersectsBox(box)) hitX = true;
                     if (!hitZ && pBoxZ.intersectsBox(box)) hitZ = true;
                 }
@@ -1643,7 +1747,7 @@
             const rayFloor = new THREE.Raycaster(playerGroup.position.clone().add(new THREE.Vector3(0, 8.0, 0)), new THREE.Vector3(0, -1, 0));
             const floorHits = rayFloor.intersectObjects(obstacles);
             let floorY = 0; if (floorHits.length > 0) floorY = floorHits[0].point.y;
-            if (playerGroup.position.y > floorY + 0.15) vY -= GRAVITY * deltaTime; else { playerGroup.position.y = floorY; vY = 0; jumps = 0; }
+            if (playerGroup.position.y > floorY + 0.2) { vY -= GRAVITY * deltaTime; } else { playerGroup.position.y = floorY + 0.01; vY = 0; jumps = 0; }
 
             if (gasPauseTimer > 0) gasPauseTimer -= deltaTime;
             if (zoneActive && zoneRadius > 10) {

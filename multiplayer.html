@@ -2152,7 +2152,111 @@
         }
         function updateNPCHealthBar(sprite, hp) { const { canvas, texture } = sprite.userData; const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, 64, 8); ctx.fillStyle = hp > 50 ? '#0f0' : hp > 20 ? '#ff0' : '#f00'; ctx.fillRect(0, 0, (hp / 100) * 64, 8); texture.needsUpdate = true; }
 
-        function createHumanoid(color, id) {
+        // ============================================
+        // SISTEMA DE CARREGAMENTO DE PERSONAGENS GLB
+        // ============================================
+        const glbCharacterCache = {
+            soldier: null,    // Modelo do player principal (Soldier.glb)
+            punk: null,       // Modelo do punk player (Punk.glb)
+            characterBase: null  // Modelo dos bots (Character Base.glb)
+        };
+
+        // Função para carregar todos os modelos de personagens
+        function preloadCharacterModels(callback) {
+            const loader = new GLTFLoader();
+            let loaded = 0;
+            const total = 3;
+
+            function checkComplete() {
+                loaded++;
+                if (loaded === total && callback) callback();
+            }
+
+            // Carregar Soldier (Player Principal)
+            loader.load('models/Soldier.glb', (gltf) => {
+                glbCharacterCache.soldier = gltf.scene.clone();
+                console.log('✅ Soldier.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Soldier.glb:', error);
+                checkComplete();
+            });
+
+            // Carregar Punk Player
+            loader.load('models/Punk.glb', (gltf) => {
+                glbCharacterCache.punk = gltf.scene.clone();
+                console.log('✅ Punk.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Punk.glb:', error);
+                checkComplete();
+            });
+
+            // Carregar Character Base (Bots)
+            loader.load('models/Character Base.glb', (gltf) => {
+                glbCharacterCache.characterBase = gltf.scene.clone();
+                console.log('✅ Character Base.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Character Base.glb:', error);
+                checkComplete();
+            });
+        }
+
+        // Função para criar personagem a partir de GLB
+        function createCharacterFromGLB(type, id) {
+            let modelTemplate = null;
+
+            if (type === 'player') {
+                modelTemplate = glbCharacterCache.soldier;
+            } else if (type === 'punk') {
+                modelTemplate = glbCharacterCache.punk;
+            } else if (type === 'bot') {
+                modelTemplate = glbCharacterCache.characterBase;
+            }
+
+            // Fallback: se o modelo não carregou, usar procedural
+            if (!modelTemplate) {
+                console.warn(`⚠️ Modelo GLB "${type}" não disponível, usando fallback procedural`);
+                return createHumanoidFallback(type === 'player' ? 0x2E7D32 : 0x7f1d1d, id);
+            }
+
+            const group = new THREE.Group();
+            const model = modelTemplate.clone();
+
+            // Ajustar escala do modelo GLB (pode precisar ajustar dependendo do tamanho original)
+            model.scale.set(2, 2, 2);
+
+            // Configurar sombras
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            group.add(model);
+
+            // Dados do personagem (compatível com o sistema antigo)
+            group.userData = {
+                hp: 100,
+                id: id || Math.random(),
+                vY: 0,
+                glbModel: model,  // Referência ao modelo GLB
+                limbs: {  // Compatibilidade com animações antigas (opcional)
+                    lLeg: null,
+                    rLeg: null,
+                    lArm: null,
+                    rArm: null,
+                    weapon: null
+                }
+            };
+
+            return group;
+        }
+
+        // Fallback: modelo procedural antigo (caso os GLBs não carreguem)
+        function createHumanoidFallback(color, id) {
             const group = new THREE.Group();
             const mB = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
             const mS = new THREE.MeshStandardMaterial({ color: 0xffdbac });
@@ -2170,6 +2274,16 @@
             group.userData = { limbs: { lLeg, rLeg, lArm, rArm, weapon }, hp: 100, id: id || Math.random(), vY: 0 };
             group.scale.set(2, 2, 2);
             return group;
+        }
+
+        // Manter compatibilidade com código antigo (agora usa GLB)
+        function createHumanoid(color, id) {
+            // Detectar tipo baseado na cor (hack temporário para compatibilidade)
+            let type = 'bot';
+            if (color === 0x2E7D32) type = 'player';  // Verde = player
+            else if (color === 0x1d7f7f) type = 'punk';  // Ciano = punk (multiplayer remoto)
+
+            return createCharacterFromGLB(type, id);
         }
 
         // ============================================
@@ -2224,9 +2338,16 @@
                                 child.geometry.computeBoundingBox();
                                 child.geometry.computeBoundingSphere();
 
+                                // Detectar chão pelo nome
+                                const name = child.name.toLowerCase();
+                                const isGround = name.includes('floor') || name.includes('ground') || name.includes('terrain') ||
+                                    name.includes('road') || name.includes('asphalt') || name.includes('grass') ||
+                                    name.includes('sand') || name.includes('sidewalk') || name.includes('chao') || name.includes('plane');
+
                                 // Adicionar colisões (exceto objetos decorativos)
-                                if (!child.name.toLowerCase().includes('decoration')) {
-                                    child.userData.isWall = true;
+                                if (!name.includes('decoration')) {
+                                    child.userData.isWall = true; // Todos os objetos não decorativos param balas
+                                    if (isGround) child.userData.isGround = true; // Se for chão, não bloqueia movimento via Box
                                     obstacles.push(child);
                                     meshCount++;
                                 }
@@ -2388,6 +2509,11 @@
             document.getElementById('game-container').innerHTML = '';
             obstacles = []; medkits = []; bullets = []; grenades = []; effects = []; houseData = [];
 
+            // CARREGAR MODELOS DE PERSONAGENS GLB
+            preloadCharacterModels(() => {
+                console.log('🎮 Todos os modelos de personagens carregados!');
+            });
+
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0006);
             clock = new THREE.Clock();
@@ -2429,7 +2555,7 @@
             group.position.set(x, 0, z);
             group.userData.isTree = true;
             scene.add(group);
-            obstacles.push(trunk, leaves);
+            obstacles.push(trunk);
         }
 
         function createLighthouse(x, z) {
@@ -2521,53 +2647,16 @@
                 const mountain = new THREE.Mesh(new THREE.ConeGeometry(width, height, 4), mountainMat);
                 mountain.position.set(x, height / 2 - 5, z);
                 mountain.rotation.y = Math.random() * Math.PI;
+                mountain.userData.isGround = true;
+                mountain.userData.isWall = true;
                 scene.add(mountain);
                 obstacles.push(mountain);
             }
         }
 
         function createWorld() {
-            const mapSize = 1000;
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(mapSize * 8, mapSize * 8), new THREE.MeshStandardMaterial({ color: 0x3d7a3d, roughness: 1 }));
-            floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
-            floor.userData.isGround = true;
-            scene.add(floor);
-            obstacles.push(floor);
-            createMountains();
-
-            createLighthouse(0, 0);
-
-            const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-            const gridSpacing = 160;
-            for (let i = -4; i <= 4; i++) {
-                const roadH = new THREE.Mesh(new THREE.PlaneGeometry(2500, 26), roadMat);
-                roadH.rotation.x = -Math.PI / 2; roadH.position.set(0, 0.1, i * gridSpacing);
-                roadH.userData.isGround = true;
-                scene.add(roadH);
-                const roadV = new THREE.Mesh(new THREE.PlaneGeometry(26, 2500), roadMat);
-                roadV.rotation.x = -Math.PI / 2; roadV.position.set(i * gridSpacing, 0.1, 0);
-                roadV.userData.isGround = true;
-                scene.add(roadV);
-            }
-
-            for (let i = 0; i < 250; i++) {
-                const tx = (Math.random() - 0.5) * 2000;
-                const tz = (Math.random() - 0.5) * 2000;
-                if (Math.hypot(tx, tz) > 60) createTree(tx, tz);
-            }
-
-            for (let a = 0; a < 4; a++) {
-                const ang = (a / 4) * Math.PI * 2;
-                createDetailedHouse(Math.cos(ang) * 60, Math.sin(ang) * 60);
-            }
-
-            for (let rx = -2; rx <= 2; rx++) {
-                for (let rz = -2; rz <= 2; rz++) {
-                    if (Math.abs(rx) < 1 && Math.abs(rz) < 1) continue;
-                    const x = rx * gridSpacing + 50, z = rz * gridSpacing + 50;
-                    createDetailedHouse(x, z);
-                }
-            }
+            // MUNDO PROCEDURAL REMOVIDO - USANDO APENAS MAPAS GLB
+            // Todo o cenário vem dos arquivos GLB carregados em loadExternalModelsMP()
         }
 
         function setupBotsPeriphery() {
