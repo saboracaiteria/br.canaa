@@ -1139,7 +1139,13 @@
 
             // Carregar Soldier (Player Principal)
             loader.load('models/Soldier.glb', (gltf) => {
-                glbCharacterCache.soldier = gltf.scene.clone();
+                glbCharacterCache.soldier = gltf.scene;
+                // Preservar texturas e materiais originais
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.needsUpdate = true;
+                    }
+                });
                 console.log('✅ Soldier.glb carregado');
                 checkComplete();
             }, undefined, (error) => {
@@ -1220,12 +1226,14 @@
             }
 
             const weapon = glbCharacterCache.assaultRifle.clone();
-            weapon.scale.set(1, 1, 1);
+            weapon.scale.set(0.5, 0.5, 0.5); // Reduzir escala da arma
 
             weapon.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
+                    // Preservar material/textura
+                    if (child.material) child.material.needsUpdate = true;
                 }
             });
 
@@ -1233,12 +1241,13 @@
 
             if (bones.rightHand) {
                 bones.rightHand.add(weapon);
-                weapon.position.set(0, 0, 0);
-                weapon.rotation.set(0, 0, 0);
+                weapon.position.set(0.1, 0, 0); // Ajuste fino
+                weapon.rotation.set(0, Math.PI / 2, 0);
                 console.log('✅ Arma anexada ao osso da mão direita');
             } else {
+                // Fallback: anexar ao modelo inteiro
                 characterModel.add(weapon);
-                weapon.position.set(0.4, 0.35, -0.2);
+                weapon.position.set(0.2, 0.8, -0.1); // Posição aproximada da mão
                 weapon.rotation.set(0, Math.PI / 2, 0);
                 console.log('⚠️ Osso não encontrado, arma em posição fixa');
             }
@@ -1270,11 +1279,19 @@
             // Ajustar escala do modelo GLB
             model.scale.set(2, 2, 2);
 
-            // Configurar sombras
+            // Configurar sombras e materiais
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
+                    // Preservar texturas originais
+                    if (child.material) {
+                        child.material.needsUpdate = true;
+                        // Se material não tem textura, adicionar cor padrão
+                        if (!child.material.map && !child.material.color) {
+                            child.material.color = new THREE.Color(type === 'player' ? 0x2E7D32 : 0x7f1d1d);
+                        }
+                    }
                 }
             });
 
