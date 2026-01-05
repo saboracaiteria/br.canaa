@@ -2626,7 +2626,7 @@
             zoneMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1500, 64, 1, true), new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide }));
             zoneMesh.scale.set(zoneRadius, 1, zoneRadius); zoneMesh.position.y = 750; scene.add(zoneMesh);
 
-            setupInputs(); // Use setupInputs (tem pointer lock) em vez de setupGameInput
+            setupGameInput(); // REVERTIDO para suportar touch mobile
             scene.updateMatrixWorld(true);
             updateCollisionBoxes();
             animate();
@@ -2784,7 +2784,39 @@
         }
 
         function setupGameInput() {
-            window.addEventListener('keydown', e => keys[e.code] = true); window.addEventListener('keyup', e => keys[e.code] = false);
+            // PC Keyboard
+            window.addEventListener('keydown', e => keys[e.code] = true);
+            window.addEventListener('keyup', e => keys[e.code] = false);
+
+            // PC Mouse - Pointer Lock
+            document.addEventListener('click', () => {
+                if (!isPlaying || isPaused) return;
+                if (document.pointerLockElement !== document.body) {
+                    document.body.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body && !isPaused && isPlaying) {
+                    const sens = cfg.sens || 0.002;
+                    cameraYaw -= e.movementX * sens;
+                    cameraPitch -= e.movementY * sens;
+                    cameraPitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraPitch));
+                }
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (!isPlaying || isPaused || document.pointerLockElement !== document.body) return;
+                if (e.button === 0) isShooting = true;
+                if (e.button === 2) { isADS = true; updateADS(); }
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (e.button === 0) isShooting = false;
+                if (e.button === 2) { isADS = false; updateADS(); }
+            });
+
+            // Mobile Touch Controls
             window.addEventListener('touchstart', e => {
                 if (isEditingHud || isPaused) return;
                 for (let t of e.changedTouches) {
