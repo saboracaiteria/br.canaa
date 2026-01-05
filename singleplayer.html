@@ -1206,16 +1206,39 @@
         }
 
         function detectCharacterBones(model) {
+            console.log('🔍 Detectando bones no modelo:', model.name || 'unnamed');
+
+            // Listar TODOS os bones disponíveis no modelo
+            const availableBones = [];
+            model.traverse((child) => {
+                if (child.isBone || child.type === 'Bone') {
+                    availableBones.push(child.name);
+                }
+            });
+            console.log('📋 Bones disponíveis no GLB:', availableBones);
+
             const bones = {
-                rightHand: findBoneByName(model, 'RightHand', 'Hand.R', 'R_Hand', 'right_hand', 'handR'),
-                leftHand: findBoneByName(model, 'LeftHand', 'Hand.L', 'L_Hand', 'left_hand', 'handL'),
-                rightLeg: findBoneByName(model, 'RightLeg', 'Leg.R', 'R_Leg', 'right_leg', 'legR'),
-                leftLeg: findBoneByName(model, 'LeftLeg', 'Leg.L', 'L_Leg', 'left_leg', 'legL'),
-                rightArm: findBoneByName(model, 'RightArm', 'Arm.R', 'R_Arm', 'right_arm', 'armR'),
-                leftArm: findBoneByName(model, 'LeftArm', 'Arm.L', 'L_Arm', 'left_arm', 'armL'),
-                spine: findBoneByName(model, 'Spine', 'spine', 'torso'),
+                rightHand: findBoneByName(model, 'RightHand', 'Hand.R', 'R_Hand', 'right_hand', 'handR', 'hand_r'),
+                leftHand: findBoneByName(model, 'LeftHand', 'Hand.L', 'L_Hand', 'left_hand', 'handL', 'hand_l'),
+                rightLeg: findBoneByName(model, 'RightLeg', 'Leg.R', 'R_Leg', 'right_leg', 'legR', 'leg_r', 'RightUpLeg'),
+                leftLeg: findBoneByName(model, 'LeftLeg', 'Leg.L', 'L_Leg', 'left_leg', 'legL', 'leg_l', 'LeftUpLeg'),
+                rightArm: findBoneByName(model, 'RightArm', 'Arm.R', 'R_Arm', 'right_arm', 'armR', 'arm_r', 'RightShoulder'),
+                leftArm: findBoneByName(model, 'LeftArm', 'Arm.L', 'L_Arm', 'left_arm', 'armL', 'arm_l', 'LeftShoulder'),
+                spine: findBoneByName(model, 'Spine', 'spine', 'torso', 'Hips'),
                 head: findBoneByName(model, 'Head', 'head')
             };
+
+            console.log('✅ Bones detectados:', {
+                rightHand: bones.rightHand ? '✓' : '✗',
+                leftHand: bones.leftHand ? '✓' : '✗',
+                rightLeg: bones.rightLeg ? '✓' : '✗',
+                leftLeg: bones.leftLeg ? '✓' : '✗',
+                rightArm: bones.rightArm ? '✓' : '✗',
+                leftArm: bones.leftArm ? '✓' : '✗',
+                spine: bones.spine ? '✓' : '✗',
+                head: bones.head ? '✓' : '✗'
+            });
+
             return bones;
         }
 
@@ -1279,17 +1302,20 @@
             // Ajustar escala do modelo GLB
             model.scale.set(2, 2, 2);
 
-            // Configurar sombras e materiais
+            // Configurar sombras e materiais COM CORES FORÇADAS
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
-                    // Preservar texturas originais
+                    // FORÇAR cores se sem textura
                     if (child.material) {
-                        child.material.needsUpdate = true;
-                        // Se material não tem textura, adicionar cor padrão
-                        if (!child.material.map && !child.material.color) {
-                            child.material.color = new THREE.Color(type === 'player' ? 0x2E7D32 : 0x7f1d1d);
+                        // Se material existe mas sem cor/textura, forçar cor
+                        if (!child.material.map) {
+                            // Verde para player, vermelho para bots
+                            const baseColor = type === 'player' ? 0x2E7D32 : 0x7f1d1d;
+                            child.material.color = new THREE.Color(baseColor);
+                            child.material.needsUpdate = true;
+                            console.log(`🎨 Cor aplicada no mesh ${child.name}: ${type === 'player' ? 'VERDE' : 'VERMELHO'}`);
                         }
                     }
                 }
@@ -1923,13 +1949,14 @@
                 const nextZ = playerGroup.position.clone().add(new THREE.Vector3(0, 0, moveDir.z).multiplyScalar(speed));
                 const pBoxX = new THREE.Box3().setFromCenterAndSize(nextX.clone().add(new THREE.Vector3(0, 2.5, 0)), new THREE.Vector3(0.4, 3.4, 0.4));
                 const pBoxZ = new THREE.Box3().setFromCenterAndSize(nextZ.clone().add(new THREE.Vector3(0, 2.5, 0)), new THREE.Vector3(0.4, 3.4, 0.4));
-                let hitX = false, hitZ = false;
-                for (let i = 0; i < obstacleBoxes.length; i++) {
-                    const box = obstacleBoxes[i];
-                    if (box.userData?.isRamp || box.userData?.isGround) continue;
-                    if (!hitX && pBoxX.intersectsBox(box)) hitX = true;
-                    if (!hitZ && pBoxZ.intersectsBox(box)) hitZ = true;
-                }
+                const hitX = hitWalls(nextX, playerRadius);
+                const hitZ = hitWalls(nextZ, playerRadius);
+
+                // COLISÃO DE BORDA DO MAPA (limite de 1000 unidades)
+                const MAP_LIMIT = 1000;
+                if (Math.abs(nextX.x) > MAP_LIMIT) nextX.x = Math.sign(nextX.x) * MAP_LIMIT;
+                if (Math.abs(nextZ.z) > MAP_LIMIT) nextZ.z = Math.sign(nextZ.z) * MAP_LIMIT;
+
                 if (!hitX) playerGroup.position.x = nextX.x;
                 if (!hitZ) playerGroup.position.z = nextZ.z;
             }
