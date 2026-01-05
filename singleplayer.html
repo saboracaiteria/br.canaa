@@ -1882,7 +1882,19 @@
                 if (!hitZ) playerGroup.position.z = nextZ.z;
             }
 
-            // ANIMAR PERSONAGEM DO PLAYER
+            for (let i = medkits.length - 1; i >= 0; i--) {
+                const mk = medkits[i]; const worldPos = new THREE.Vector3(); mk.getWorldPosition(worldPos);
+                if (playerGroup.position.distanceTo(worldPos) < 6) { health = Math.min(100, health + 40); scene.remove(mk); medkits.splice(i, 1); playSfx('hit'); continue; }
+                for (let bot of bots) { if (bot.position.distanceTo(worldPos) < 6 && bot.userData.hp < bot.userData.maxHP) { bot.userData.hp = Math.min(bot.userData.maxHP, bot.userData.hp + 40); scene.remove(mk); medkits.splice(i, 1); playSfx('hit'); break; } }
+            }
+
+            playerGroup.position.y += vY * deltaTime * 60;
+            const rayFloor = new THREE.Raycaster(playerGroup.position.clone().add(new THREE.Vector3(0, 8.0, 0)), new THREE.Vector3(0, -1, 0));
+            const floorHits = rayFloor.intersectObjects(obstacles);
+            let floorY = 0; if (floorHits.length > 0) floorY = floorHits[0].point.y;
+            if (playerGroup.position.y > floorY + 0.2) { vY -= GRAVITY * deltaTime; } else { playerGroup.position.y = floorY + 0.01; vY = 0; jumps = 0; }
+
+            // ANIMAR PERSONAGEM DO PLAYER (DEPOIS de calcular floorY)
             const isWalking = Math.hypot(inputX, inputY) > 0.1;
             const isJumping = playerGroup.position.y > floorY + 0.2;
             animateCharacter(playerGroup, {
@@ -1893,18 +1905,6 @@
                 time: time,
                 jumpVelocity: vY
             });
-
-            for (let i = medkits.length - 1; i >= 0; i--) {
-                const mk = medkits[i]; const worldPos = new THREE.Vector3(); mk.getWorldPosition(worldPos);
-                if (playerGroup.position.distanceTo(worldPos) < 6) { health = Math.min(100, health + 40); scene.remove(mk); medkits.splice(i, 1); playSfx('hit'); continue; }
-                for (let bot of bots) { if (bot.position.distanceTo(worldPos) < 6 && bot.userData.hp < bot.userData.maxHP) { bot.userData.hp = Math.min(bot.userData.maxHP, bot.userData.hp + 40); scene.remove(mk); medkits.splice(i, 1); playSfx('hit'); break; } }
-            }
-
-            playerGroup.position.y += vY * deltaTime * 60; // Manter compatibilidade com velocidade anterior
-            const rayFloor = new THREE.Raycaster(playerGroup.position.clone().add(new THREE.Vector3(0, 8.0, 0)), new THREE.Vector3(0, -1, 0));
-            const floorHits = rayFloor.intersectObjects(obstacles);
-            let floorY = 0; if (floorHits.length > 0) floorY = floorHits[0].point.y;
-            if (playerGroup.position.y > floorY + 0.2) { vY -= GRAVITY * deltaTime; } else { playerGroup.position.y = floorY + 0.01; vY = 0; jumps = 0; }
 
             if (gasPauseTimer > 0) gasPauseTimer -= deltaTime;
             if (zoneActive && zoneRadius > 10) {
