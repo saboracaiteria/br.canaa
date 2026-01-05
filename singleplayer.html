@@ -1396,7 +1396,7 @@
             zoneMesh.scale.set(zoneRadius, 1, zoneRadius); zoneMesh.position.y = 750; scene.add(zoneMesh);
 
             setupBotsPeriphery();
-            setupGameInput();
+            setupInputs(); // CORREÇÃO! setupInputs tem pointer lock para PC
             scene.updateMatrixWorld(true);
             updateCollisionBoxes();
             animate();
