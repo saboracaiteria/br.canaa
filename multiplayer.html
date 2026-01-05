@@ -2597,11 +2597,6 @@
             document.getElementById('game-container').innerHTML = '';
             obstacles = []; medkits = []; bullets = []; grenades = []; effects = []; houseData = [];
 
-            // CARREGAR MODELOS DE PERSONAGENS GLB
-            preloadCharacterModels(() => {
-                console.log('🎮 Todos os modelos de personagens carregados!');
-            });
-
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0006);
             clock = new THREE.Clock();
@@ -2618,17 +2613,28 @@
 
             createWorld();
 
-            playerGroup = new THREE.Group(); charModel = createHumanoid(0x2E7D32, 'player'); playerGroup.add(charModel); scene.add(playerGroup);
-            playerGroup.position.set(30, 2, 0);
-
             zoneMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1500, 64, 1, true), new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.2, side: THREE.DoubleSide }));
             zoneMesh.scale.set(zoneRadius, 1, zoneRadius); zoneMesh.position.y = 750; scene.add(zoneMesh);
 
-            setupBotsPeriphery();
-            setupGameInput();
+            setupInputs(); // Use setupInputs (tem pointer lock) em vez de setupGameInput
             scene.updateMatrixWorld(true);
             updateCollisionBoxes();
             animate();
+
+            // CARREGAR MODELOS GLB E CRIAR PERSONAGENS DEPOIS
+            preloadCharacterModels(() => {
+                console.log('🎮 Todos os modelos de personagens carregados!');
+
+                // Criar player APÓS GLBs carregarem
+                playerGroup = new THREE.Group();
+                charModel = createHumanoid(0x2E7D32, 'player');
+                playerGroup.add(charModel);
+                scene.add(playerGroup);
+                playerGroup.position.set(30, 2, 0);
+
+                // Criar bots APÓS GLBs carregarem
+                setupBotsPeriphery();
+            });
         }
 
         // updateCollisionBoxes() já definida na linha 2280 - duplicata removida
