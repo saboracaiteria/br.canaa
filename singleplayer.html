@@ -1558,9 +1558,6 @@
             document.getElementById('btn-run').onclick = (e) => { isRunning = !isRunning; e.target.classList.toggle('active', isRunning); };
             document.getElementById('btn-swap-nade').onclick = (e) => { grenadeType = (grenadeType === 'explosive' ? 'smoke' : 'explosive'); e.target.innerHTML = `BOMBA<br>(${grenadeType === 'explosive' ? 'EXPL' : 'FUMA'})`; };
             document.getElementById('btn-switch-weapon').onclick = (e) => { currentWeapon = currentWeapon === 'AR' ? 'SNIPER' : 'AR'; e.target.innerHTML = `ARMA<br>(${currentWeapon === 'AR' ? 'FUZIL' : 'SNIPER'})`; };
-
-            // NOVO: Configurar inputs do PC
-            setupInputs();
         }
 
         function checkPathObstructedBySmoke(from, to) {
@@ -1876,7 +1873,38 @@
         }
         window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
 
-        setupInputs();
+        // ============================================
+        // FUNÇÕES AUXILIARES DE CONTROLE
+        // ============================================
+        function updateADS() {
+            if (isADS) {
+                camera.fov = currentWeapon === 'SNIPER' ? 12 : 30;
+                camera.updateProjectionMatrix();
+                if (currentWeapon === 'SNIPER') {
+                    document.getElementById('sniper-scope').style.display = 'block';
+                }
+            } else {
+                camera.fov = cfg.fov;
+                camera.updateProjectionMatrix();
+                document.getElementById('sniper-scope').style.display = 'none';
+            }
+        }
+
+        function reloadWeapon() {
+            // Placeholder para recarga de arma
+            // Pode ser expandido no futuro com sistema de munição
+            console.log('Recarregando arma...');
+        }
+
+        function switchWeapon(weapon) {
+            currentWeapon = weapon;
+            console.log(`Arma trocada para: ${weapon}`);
+            // Atualizar UI se necessário
+            const btn = document.getElementById('btn-switch-weapon');
+            if (btn) {
+                btn.innerHTML = `ARMA<br>(${weapon === 'AR' ? 'FUZIL' : 'SNIPER'})`;
+            }
+        }
 
         // ============================================
         // INPUTS E CONTROLES (NOVO)
@@ -1942,7 +1970,7 @@
 
                 // Ações instantâneas
                 if (e.code === 'KeyR') reloadWeapon();
-                if (e.code === 'Space' && jumps > 0) { vY = 0.4; jumps--; }
+                if (e.code === 'Space' && jumps < 2) { vY = 0.8; jumps++; }
                 if (e.code === 'Digit1') switchWeapon('AR');
                 if (e.code === 'Digit2') switchWeapon('SNIPER');
                 if (e.code === 'KeyF') {
