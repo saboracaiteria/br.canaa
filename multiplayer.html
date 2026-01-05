@@ -2158,14 +2158,15 @@
         const glbCharacterCache = {
             soldier: null,    // Modelo do player principal (Soldier.glb)
             punk: null,       // Modelo do punk player (Punk.glb)
-            characterBase: null  // Modelo dos bots (Character Base.glb)
+            characterBase: null,  // Modelo dos bots (Character Base.glb)
+            assaultRifle: null    // Modelo da arma (Assault Rifle.glb)
         };
 
-        // Função para carregar todos os modelos de personagens
+        // Função para carregar todos os modelos de personagens e armas
         function preloadCharacterModels(callback) {
             const loader = new GLTFLoader();
             let loaded = 0;
-            const total = 3;
+            const total = 4; // Agora são 4 modelos (3 personagens + 1 arma)
 
             function checkComplete() {
                 loaded++;
@@ -2201,6 +2202,87 @@
                 console.error('❌ Erro ao carregar Character Base.glb:', error);
                 checkComplete();
             });
+
+            // Carregar Assault Rifle (Arma)
+            loader.load('models/Assault Rifle.glb', (gltf) => {
+                glbCharacterCache.assaultRifle = gltf.scene.clone();
+                console.log('✅ Assault Rifle.glb carregado');
+                checkComplete();
+            }, undefined, (error) => {
+                console.error('❌ Erro ao carregar Assault Rifle.glb:', error);
+                checkComplete();
+            });
+        }
+
+        // ============================================
+        // SISTEMA DE DETECÇÃO DE OSSOS E ANEXAÇÃO DE ARMA
+        // ============================================
+
+        // Função para encontrar ossos (bones) no modelo GLB
+        function findBoneByName(model, ...names) {
+            let foundBone = null;
+            model.traverse((child) => {
+                if (foundBone) return;
+                if (child.isBone || child.type === 'Bone') {
+                    const childName = child.name.toLowerCase();
+                    for (let name of names) {
+                        if (childName.includes(name.toLowerCase())) {
+                            foundBone = child;
+                            return;
+                        }
+                    }
+                }
+            });
+            return foundBone;
+        }
+
+        // Função para detectar todos os ossos importantes
+        function detectCharacterBones(model) {
+            const bones = {
+                rightHand: findBoneByName(model, 'RightHand', 'Hand.R', 'R_Hand', 'right_hand', 'handR'),
+                leftHand: findBoneByName(model, 'LeftHand', 'Hand.L', 'L_Hand', 'left_hand', 'handL'),
+                rightLeg: findBoneByName(model, 'RightLeg', 'Leg.R', 'R_Leg', 'right_leg', 'legR'),
+                leftLeg: findBoneByName(model, 'LeftLeg', 'Leg.L', 'L_Leg', 'left_leg', 'legL'),
+                rightArm: findBoneByName(model, 'RightArm', 'Arm.R', 'R_Arm', 'right_arm', 'armR'),
+                leftArm: findBoneByName(model, 'LeftArm', 'Arm.L', 'L_Arm', 'left_arm', 'armL'),
+                spine: findBoneByName(model, 'Spine', 'spine', 'torso'),
+                head: findBoneByName(model, 'Head', 'head')
+            };
+            return bones;
+        }
+
+        // Função para anexar arma na mão do personagem
+        function attachWeaponToHand(characterGroup, characterModel) {
+            if (!glbCharacterCache.assaultRifle) {
+                console.warn(' ⚠️ Assault Rifle não carregada ainda');
+                return null;
+            }
+
+            const weapon = glbCharacterCache.assaultRifle.clone();
+            weapon.scale.set(1, 1, 1);
+
+            weapon.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+
+            const bones = detectCharacterBones(characterModel);
+
+            if (bones.rightHand) {
+                bones.rightHand.add(weapon);
+                weapon.position.set(0, 0, 0);
+                weapon.rotation.set(0, 0, 0);
+                console.log('✅ Arma anexada ao osso da mão direita');
+            } else {
+                characterModel.add(weapon);
+                weapon.position.set(0.4, 0.35, -0.2);
+                weapon.rotation.set(0, Math.PI / 2, 0);
+                console.log('⚠️ Osso não encontrado, arma em posição fixa');
+            }
+
+            return weapon;
         }
 
         // Função para criar personagem a partir de GLB
@@ -2237,18 +2319,24 @@
 
             group.add(model);
 
+            // Detectar ossos e anexar arma
+            const bones = detectCharacterBones(model);
+            const weapon = attachWeaponToHand(group, model);
+
             // Dados do personagem (compatível com o sistema antigo)
             group.userData = {
                 hp: 100,
                 id: id || Math.random(),
                 vY: 0,
-                glbModel: model,  // Referência ao modelo GLB
-                limbs: {  // Compatibilidade com animações antigas (opcional)
-                    lLeg: null,
-                    rLeg: null,
-                    lArm: null,
-                    rArm: null,
-                    weapon: null
+                glbModel: model,
+                bones: bones,  // Ossos detectados
+                weapon: weapon,  // Referência à arma
+                limbs: {  // Compatibilidade com sistema antigo
+                    lLeg: bones.leftLeg,
+                    rLeg: bones.rightLeg,
+                    lArm: bones.leftArm,
+                    rArm: bones.rightArm,
+                    weapon: weapon
                 }
             };
 
