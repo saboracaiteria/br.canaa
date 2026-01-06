@@ -2174,7 +2174,7 @@
             }
 
             // Carregar Soldier (Player Principal)
-            loader.load('models/Soldier.glb', (gltf) => {
+            loader.load('models/skins/Soldier.glb', (gltf) => {
                 glbCharacterCache.soldier = gltf.scene;
                 gltf.scene.traverse((child) => {
                     if (child.isMesh && child.material) child.material.needsUpdate = true;
@@ -2187,7 +2187,7 @@
             });
 
             // Carregar Punk Player
-            loader.load('models/Punk.glb', (gltf) => {
+            loader.load('models/skins/Punk.glb', (gltf) => {
                 glbCharacterCache.punk = gltf.scene.clone();
                 console.log('✅ Punk.glb carregado');
                 checkComplete();
@@ -2197,7 +2197,7 @@
             });
 
             // Carregar Character Base (Bots)
-            loader.load('models/Character Base.glb', (gltf) => {
+            loader.load('models/skins/Character Base.glb', (gltf) => {
                 glbCharacterCache.characterBase = gltf.scene.clone();
                 console.log('✅ Character Base.glb carregado');
                 checkComplete();
@@ -2207,7 +2207,7 @@
             });
 
             // Carregar Assault Rifle (Arma)
-            loader.load('models/Assault Rifle.glb', (gltf) => {
+            loader.load('models/armas/Assault Rifle.glb', (gltf) => {
                 glbCharacterCache.assaultRifle = gltf.scene.clone();
                 console.log('✅ Assault Rifle.glb carregado');
                 checkComplete();
@@ -2412,7 +2412,7 @@
             // Carregar 4 instâncias do mapa
             mapPositions.forEach((pos, index) => {
                 loader.load(
-                    'models/fps canaa Map.glb',
+                    'models/maps/Map.glb',
                     function (gltf) {
                         const model = gltf.scene.clone();
 

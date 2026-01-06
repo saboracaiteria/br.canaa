@@ -1138,7 +1138,7 @@
             }
 
             // Carregar Soldier (Player Principal)
-            loader.load('models/Soldier.glb', (gltf) => {
+            loader.load('models/skins/Soldier.glb', (gltf) => {
                 glbCharacterCache.soldier = gltf.scene;
                 // Preservar texturas e materiais originais
                 gltf.scene.traverse((child) => {
@@ -1154,7 +1154,7 @@
             });
 
             // Carregar Punk Player
-            loader.load('models/Punk.glb', (gltf) => {
+            loader.load('models/skins/Punk.glb', (gltf) => {
                 glbCharacterCache.punk = gltf.scene.clone();
                 console.log('✅ Punk.glb carregado');
                 checkComplete();
@@ -1164,7 +1164,7 @@
             });
 
             // Carregar Character Base (Bots)
-            loader.load('models/Character Base.glb', (gltf) => {
+            loader.load('models/skins/Character Base.glb', (gltf) => {
                 glbCharacterCache.characterBase = gltf.scene.clone();
                 console.log('✅ Character Base.glb carregado');
                 checkComplete();
@@ -1174,7 +1174,7 @@
             });
 
             // Carregar Assault Rifle (Arma)
-            loader.load('models/Assault Rifle.glb', (gltf) => {
+            loader.load('models/armas/Assault Rifle.glb', (gltf) => {
                 glbCharacterCache.assaultRifle = gltf.scene.clone();
                 console.log('✅ Assault Rifle.glb carregado');
                 checkComplete();
@@ -1441,7 +1441,7 @@
                 charModel = createHumanoid(0x2E7D32, 'player');
                 playerGroup.add(charModel);
                 scene.add(playerGroup);
-                playerGroup.position.set(0, 10, 0);
+                playerGroup.position.set(50, 20, 50); // Spawn em área aberta, não dentro de prédio
 
                 // Criar bots APÓS GLBs carregarem
                 setupBotsPeriphery();
@@ -1583,7 +1583,7 @@
 
             // CARREGAR MAPA: fps canaa Map.glb
             loader.load(
-                'models/fps canaa Map.glb', // Caminho do arquivo GLB
+                'models/maps/Map.glb', // Caminho do arquivo GLB
                 function (gltf) {
                     // Sucesso - modelo carregado
                     const model = gltf.scene;
